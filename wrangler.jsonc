@@ -1,57 +1,54 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "adpasssync-site",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-04-27",
-  "compatibility_flags": ["nodejs_compat"],
-
-  // Static assets (existing marketing site + portal HTML).
-  // run_worker_first ensures /api/* hits the Worker even if a static path
-  // would otherwise match. Everything else is served from public/ first
-  // and falls through to the Worker only if no asset matches.
-  "assets": {
-    "directory": "./public",
-    "binding": "ASSETS",
-    "run_worker_first": ["/api/*"]
-  },
-
-  "observability": {
-    "enabled": true
-  },
-
-  // D1 database for customers, sessions, licenses, downloads.
-  // Replace the database_id after running `wrangler d1 create adpasssync-db`.
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "adpasssync-db",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID"
-    }
-  ],
-
-  // R2 bucket holding the base MSI installer and any other release artifacts.
-  // Create with `wrangler r2 bucket create adpasssync-installers`.
-  "r2_buckets": [
-    {
-      "binding": "INSTALLER_BUCKET",
-      "bucket_name": "adpasssync-installers"
-    }
-  ],
-
-  // Plain (non-secret) configuration. Secrets are added via
-  // `wrangler secret put <NAME>` and not stored here.
-  //
-  // Required secrets:
-  //   LICENSE_PRIVATE_KEY  PKCS8 PEM RSA private key used to sign licenses
-  //   LICENSE_PUBLIC_KEY   matching SPKI PEM public key (shipped with installer)
-  //   RESEND_API_KEY       optional: Resend API key for magic-link email
-  "vars": {
-    "PUBLIC_BASE_URL": "https://adpasssync.com",
-    "ADMIN_EMAILS": "admin@adpasssync.com",
-    "SESSION_TTL_HOURS": "24",
-    "MAGIC_LINK_TTL_MINUTES": "15",
-    "FROM_EMAIL": "no-reply@adpasssync.com",
-    "INSTALLER_OBJECT_KEY": "current/ADPassSync-Setup.msi",
-    "DEV_RETURN_MAGIC_LINK": "true"
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "adpasssync-site",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-04-27",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	// Static assets (existing marketing site + portal HTML).
+	// run_worker_first ensures /api/* hits the Worker even if a static path
+	// would otherwise match. Everything else is served from public/ first
+	// and falls through to the Worker only if no asset matches.
+	"assets": {
+		"directory": "./public",
+		"binding": "ASSETS",
+		"run_worker_first": [
+			"/api/*"
+		]
+	},
+	"observability": {
+		"enabled": true
+	},
+	// D1 database for customers, sessions, licenses, downloads.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "adpasssync-db",
+			"database_id": "3b20d3ea-c2fd-4785-8587-19adbef6d025"
+		}
+	],
+	// R2 bucket holding the base MSI installer and any other release artifacts.
+	"r2_buckets": [
+		{
+			"binding": "INSTALLER_BUCKET",
+			"bucket_name": "adpasssync-installers"
+		}
+	],
+	// Plain (non-secret) configuration. Secrets are added via
+	// `wrangler secret put <NAME>` and not stored here.
+	//
+	// Required secrets:
+	//   LICENSE_PRIVATE_KEY  PKCS8 PEM RSA private key used to sign licenses
+	//   LICENSE_PUBLIC_KEY   matching SPKI PEM public key (shipped with installer)
+	//   RESEND_API_KEY       optional: Resend API key for magic-link email
+	"vars": {
+		"PUBLIC_BASE_URL": "https://adpasssync.com",
+		"ADMIN_EMAILS": "admin@adpasssync.com",
+		"SESSION_TTL_HOURS": "24",
+		"MAGIC_LINK_TTL_MINUTES": "15",
+		"FROM_EMAIL": "no-reply@adpasssync.com",
+		"INSTALLER_OBJECT_KEY": "current/ADPassSync-Setup.msi",
+		"DEV_RETURN_MAGIC_LINK": "true"
+	}
 }
