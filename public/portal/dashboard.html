@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — ADPassSync Portal</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/portal/css/portal.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-icon">AP</span>
+        ADPassSync
+      </a>
+      <div class="nav-meta">
+        <span id="user-email" class="muted"></span>
+        <button id="logout-btn" type="button">Sign out</button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <h1 id="greeting">Customer Portal</h1>
+    <p class="subtitle" id="greeting-sub">Manage your ADPassSync license and download installers.</p>
+
+    <div id="alert" class="alert hidden"></div>
+
+    <div id="loading" class="card">
+      <p class="muted">Loading your account…</p>
+    </div>
+
+    <div id="content" class="hidden">
+      <!-- First-time onboarding banner. Shown only when name + company are both blank. -->
+      <section id="onboarding-card" class="card hidden" style="border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-glow, rgba(59,130,246,0.2));">
+        <h2>Welcome to ADPassSync</h2>
+        <p class="muted" style="margin-bottom:1rem">
+          Your account is ready. Tell us a bit about yourself so your license file
+          carries the right details — you can change these any time below.
+        </p>
+        <a href="#profile-card" class="btn btn-primary">Complete your profile</a>
+      </section>
+
+      <div class="grid-2">
+        <section class="card">
+          <h2>License</h2>
+          <div id="license-block">
+            <p class="muted">No license issued yet. Download the installer to provision your free-tier license automatically.</p>
+          </div>
+        </section>
+
+        <section class="card" id="profile-card">
+          <h2>Profile</h2>
+          <p class="muted" style="margin-bottom:1rem;font-size:0.88rem">
+            These details are embedded in your signed license file.
+          </p>
+          <form id="profile-form">
+            <div class="form-row">
+              <label for="p-name">Your name</label>
+              <input id="p-name" type="text" autocomplete="name" maxlength="200" placeholder="Jane Doe">
+            </div>
+            <div class="form-row">
+              <label for="p-company">Company</label>
+              <input id="p-company" type="text" autocomplete="organization" maxlength="200" placeholder="Acme Corp">
+            </div>
+            <button type="submit" class="btn btn-primary" id="profile-btn">Save profile</button>
+          </form>
+          <hr style="border:none;border-top:1px solid var(--border);margin:1.5rem 0">
+          <dl class="kv">
+            <dt>Email</dt><dd id="acct-email" class="mono"></dd>
+            <dt>Customer ID</dt><dd id="acct-id" class="mono"></dd>
+            <dt>Install ID</dt><dd id="acct-install" class="mono"><span class="muted">— assigned on first download —</span></dd>
+          </dl>
+        </section>
+      </div>
+
+      <section class="card">
+        <h2>Download installer</h2>
+        <p class="muted" style="margin-bottom:1rem">
+          One ZIP, two files: <span class="mono">ADPassSync-Setup.msi</span> and a signed
+          <span class="mono">license-key.txt</span> bound to your install ID.
+        </p>
+        <a id="download-btn" class="btn btn-primary" href="/api/portal/download">
+          Download ADPassSync
+        </a>
+      </section>
+
+      <section class="card">
+        <h2>Recent downloads</h2>
+        <div id="downloads-block">
+          <p class="muted">No downloads recorded yet.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Upgrade to Professional</h2>
+        <p class="muted" style="margin-bottom:1rem">
+          Free tier covers up to 50 AD users. Tell us how many seats you need and we'll
+          follow up with a quote — payment integration is coming soon.
+        </p>
+        <form id="purchase-form">
+          <div class="grid-2">
+            <div class="form-row">
+              <label for="seats">Total AD users</label>
+              <input id="seats" name="seats" type="number" min="51" max="100000" value="100" required>
+            </div>
+            <div class="form-row">
+              <label for="tier">Tier</label>
+              <select id="tier" name="tier">
+                <option value="professional">Professional ($1/user/year over 50)</option>
+                <option value="enterprise">Enterprise (contact us)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <label for="notes">Notes (optional)</label>
+            <textarea id="notes" name="notes" rows="3" placeholder="Anything we should know?"></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary" id="purchase-btn">Request quote</button>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; <span id="year"></span> ADPassSync. <a href="/">adpasssync.com</a></p>
+  </footer>
+
+  <script src="/portal/js/dashboard.js"></script>
+</body>
+</html>

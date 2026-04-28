@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — ADPassSync Portal</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/portal/css/portal.css">
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo">
+        <span class="logo-icon">AP</span>
+        ADPassSync <span class="badge enterprise" style="margin-left:0.5rem">Admin</span>
+      </a>
+      <div class="nav-meta">
+        <a href="/portal/dashboard.html" class="muted">My account</a>
+        <span id="user-email" class="muted"></span>
+        <button id="logout-btn" type="button">Sign out</button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <h1>Admin</h1>
+    <p class="subtitle">Customer accounts and license issuance.</p>
+
+    <div id="alert" class="alert hidden"></div>
+
+    <section class="card">
+      <h2>Customers</h2>
+      <div id="customers-block"><p class="muted">Loading…</p></div>
+    </section>
+
+    <section class="card">
+      <h2>Issue license</h2>
+      <p class="muted" style="margin-bottom:1rem">
+        Sign a license file for a customer. If they have no install ID yet, one is allocated.
+      </p>
+      <form id="issue-form">
+        <div class="form-row">
+          <label for="cust-id">Customer ID</label>
+          <input id="cust-id" type="text" placeholder="uuid" required>
+        </div>
+        <div class="grid-2">
+          <div class="form-row">
+            <label for="i-tier">Tier</label>
+            <select id="i-tier">
+              <option value="free">Free</option>
+              <option value="professional" selected>Professional</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="i-max">Max AD users</label>
+            <input id="i-max" type="number" min="1" max="1000000" value="100" required>
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="i-exp">Expires (YYYY-MM-DD; leave blank for perpetual)</label>
+          <input id="i-exp" type="text" placeholder="2027-04-28">
+        </div>
+        <button type="submit" class="btn btn-primary" id="issue-btn">Generate license</button>
+      </form>
+    </section>
+
+    <section class="card hidden" id="detail-card">
+      <h2 id="detail-title">Customer detail</h2>
+      <div id="detail-block"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; <span id="year"></span> ADPassSync.</p>
+  </footer>
+
+  <script src="/portal/js/admin.js"></script>
+</body>
+</html>

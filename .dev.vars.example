@@ -1,0 +1,14 @@
+# Copy to .dev.vars (which is gitignored via .env in .gitignore — verify!)
+# wrangler dev loads .dev.vars as secrets for local runs.
+#
+# Generate the keypair with: npm run keys:generate
+# Then paste the corresponding PEM blocks below as one-line strings with
+# literal \n line breaks, OR use multi-line values (wrangler supports both).
+
+LICENSE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+LICENSE_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\n"
+
+# Optional. Without it, magic-link emails are logged to the Worker console
+# and (when DEV_RETURN_MAGIC_LINK=true in wrangler.jsonc) returned in the
+# /api/auth/login response so you can click straight through.
+RESEND_API_KEY=""

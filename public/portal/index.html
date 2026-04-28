@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in — ADPassSync Portal</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/portal/css/portal.css">
+</head>
+<body>
+  <div class="login-shell">
+    <div class="login-card">
+      <a href="/" style="display:flex;align-items:center;gap:0.6rem;margin-bottom:1.5rem;color:var(--text);font-weight:700;">
+        <span class="logo-icon" style="width:30px;height:30px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:800;color:#fff">AP</span>
+        ADPassSync
+      </a>
+      <h1>Sign in or create account</h1>
+      <p class="subtitle">
+        Enter your work email and we'll send you a sign-in link. New here? Your free
+        account is created automatically — no password to set, nothing to remember.
+      </p>
+
+      <div id="alert" class="alert hidden"></div>
+
+      <form id="login-form" novalidate>
+        <div class="form-row">
+          <label for="email">Work email</label>
+          <input id="email" name="email" type="email" autocomplete="email" required placeholder="you@company.com">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%" id="submit-btn">
+          Email me a sign-in link
+        </button>
+      </form>
+
+      <p class="muted" style="margin-top:1.25rem; font-size:0.85rem; line-height:1.5;">
+        Free tier covers up to 50 Active Directory users — no credit card. After
+        signing in you'll get an installer bundled with your signed license file.
+      </p>
+
+      <div id="dev-link" class="dev-link-box hidden">
+        <strong>Dev mode:</strong> email delivery is disabled. Click the link below to sign in:
+        <div style="margin-top:0.5rem"><a id="dev-link-anchor" href="#"></a></div>
+      </div>
+
+      <p class="muted" style="margin-top:1.5rem; text-align:center;">
+        <a href="/">← Back to adpasssync.com</a>
+      </p>
+    </div>
+  </div>
+  <script src="/portal/js/login.js"></script>
+</body>
+</html>
