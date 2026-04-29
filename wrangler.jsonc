@@ -49,6 +49,6 @@
 		"MAGIC_LINK_TTL_MINUTES": "15",
 		"FROM_EMAIL": "no-reply@adpasssync.com",
 		"INSTALLER_OBJECT_KEY": "current/ADPassSync-Setup.msi",
-		"DEV_RETURN_MAGIC_LINK": "true"
+		"DEV_RETURN_MAGIC_LINK": "false"
 	}
 }

@@ -49,15 +49,34 @@ export function timingSafeEqual(a: string, b: string): boolean {
 // ---------- PEM <-> CryptoKey helpers ----------
 
 function pemBodyToBytes(pem: string): Uint8Array {
+  // Strip BEGIN/END framing then keep only base64 characters. We can't just
+  // strip whitespace — secrets pasted through `wrangler secret put` (or
+  // round-tripped through JSON / dotenv) often arrive with literal "\n"
+  // escape sequences, BOMs, or smart quotes mixed in. Filtering to the
+  // base64 alphabet is the most forgiving fix that's still correct.
   const body = pem
     .replace(/-----BEGIN [^-]+-----/g, '')
     .replace(/-----END [^-]+-----/g, '')
-    .replace(/\s+/g, '');
+    .replace(/[^A-Za-z0-9+/=]/g, '');
+  if (body.length === 0) {
+    throw new Error(
+      'PEM body is empty after stripping framing — secret may be missing or corrupt',
+    );
+  }
   return base64ToBytes(body);
 }
 
 export async function importRsaPrivateKey(pem: string): Promise<CryptoKey> {
-  const der = pemBodyToBytes(pem);
+  let der: Uint8Array;
+  try {
+    der = pemBodyToBytes(pem);
+  } catch (e) {
+    throw new Error(
+      `LICENSE_PRIVATE_KEY is not a valid PEM-encoded PKCS#8 RSA private key: ${
+        (e as Error).message
+      }`,
+    );
+  }
   return crypto.subtle.importKey(
     'pkcs8',
     der,
@@ -68,7 +87,16 @@ export async function importRsaPrivateKey(pem: string): Promise<CryptoKey> {
 }
 
 export async function importRsaPublicKey(pem: string): Promise<CryptoKey> {
-  const der = pemBodyToBytes(pem);
+  let der: Uint8Array;
+  try {
+    der = pemBodyToBytes(pem);
+  } catch (e) {
+    throw new Error(
+      `LICENSE_PUBLIC_KEY is not a valid PEM-encoded SPKI RSA public key: ${
+        (e as Error).message
+      }`,
+    );
+  }
   return crypto.subtle.importKey(
     'spki',
     der,
