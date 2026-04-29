@@ -8,8 +8,11 @@ import {
   getActiveLicenseForCustomer,
   listAllCustomers,
   listDownloadsForCustomer,
+  listPurchases,
   setCustomerInstallId,
+  updatePurchaseStatus,
 } from '../lib/db';
+import type { PurchaseStatus } from '../lib/db';
 import { uuidv4 } from '../lib/crypto';
 import { issueLicense } from '../lib/license';
 
@@ -104,6 +107,39 @@ admin.get('/customer/:id', async (c) => {
     license,
     downloads,
   });
+});
+
+// GET /api/admin/purchases?status=pending|paid|cancelled
+// Returns purchase rows joined with customer email/name/company.
+admin.get('/purchases', async (c) => {
+  const status = c.req.query('status');
+  let filter: PurchaseStatus | null = null;
+  if (status !== undefined && status !== '') {
+    if (status !== 'pending' && status !== 'paid' && status !== 'cancelled') {
+      return c.json({ error: 'invalid_status' }, 400);
+    }
+    filter = status;
+  }
+  const purchases = await listPurchases(c.env.DB, filter);
+  return c.json({ purchases });
+});
+
+// POST /api/admin/purchase/:id/status   { status: "paid" | "cancelled" | "pending" }
+admin.post('/purchase/:id/status', async (c) => {
+  const id = c.req.param('id');
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_json' }, 400);
+  }
+  const next = (body as { status?: unknown })?.status;
+  if (next !== 'pending' && next !== 'paid' && next !== 'cancelled') {
+    return c.json({ error: 'invalid_status' }, 400);
+  }
+  const result = await updatePurchaseStatus(c.env.DB, id, next);
+  if (!result.updated) return c.json({ error: 'not_found' }, 404);
+  return c.json({ ok: true, id, status: next });
 });
 
 export default admin;

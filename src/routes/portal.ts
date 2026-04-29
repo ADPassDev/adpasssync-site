@@ -17,6 +17,7 @@ import { uuidv4 } from '../lib/crypto';
 import { freeTierDefaults, issueLicense } from '../lib/license';
 import { getClientIp } from '../lib/auth';
 import { buildZip } from '../lib/zip';
+import { sendPurchaseAlertEmail } from '../lib/email';
 
 const portal = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -231,6 +232,15 @@ portal.post('/purchase', async (c) => {
     seats: Math.floor(seatsNum),
     notes: typeof notes === 'string' ? notes.slice(0, 2000) : null,
   });
+
+  // Notify admins out-of-band. Failures here must not bubble up to the
+  // submitter — the row is already persisted and the admin UI surfaces it.
+  c.executionCtx.waitUntil(
+    sendPurchaseAlertEmail(c.env, purchase, customer).catch((err) =>
+      console.error('purchase alert email failed', err),
+    ),
+  );
+
   return c.json({ ok: true, purchase });
 });
 

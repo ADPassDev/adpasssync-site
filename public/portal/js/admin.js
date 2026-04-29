@@ -9,6 +9,7 @@
   const alertBox = document.getElementById('alert');
   document.getElementById('logout-btn').addEventListener('click', logout);
   document.getElementById('issue-form').addEventListener('submit', issueLicense);
+  document.getElementById('purchase-filter').addEventListener('change', refreshPurchases);
 
   init().catch(function (e) {
     console.error(e);
@@ -20,7 +21,85 @@
     if (!me.authenticated) { location.href = '/portal/'; return; }
     if (!me.is_admin) { location.href = '/portal/dashboard.html'; return; }
     document.getElementById('user-email').textContent = me.customer.email;
-    await refreshCustomers();
+    await Promise.all([refreshPurchases(), refreshCustomers()]);
+  }
+
+  async function refreshPurchases() {
+    const filter = document.getElementById('purchase-filter').value;
+    const url = '/api/admin/purchases' + (filter ? '?status=' + encodeURIComponent(filter) : '');
+    const data = await fetchJson(url);
+    const block = document.getElementById('purchases-block');
+    if (!data.purchases.length) {
+      block.innerHTML = '<p class="muted">No quote requests' + (filter ? ' with status "' + escapeText(filter) + '"' : '') + '.</p>';
+      return;
+    }
+    let html = '<table><thead><tr>' +
+      '<th>Submitted</th><th>Customer</th><th>Tier</th><th>Seats</th><th>Status</th><th>Notes</th><th></th>' +
+      '</tr></thead><tbody>';
+    for (const p of data.purchases) {
+      const submitted = new Date(p.created_at * 1000).toLocaleString();
+      const who = (p.customer_name ? escapeText(p.customer_name) + '<br>' : '') +
+        '<span class="mono muted" style="font-size:0.8rem">' + escapeText(p.customer_email) + '</span>' +
+        (p.customer_company ? '<br><span class="muted" style="font-size:0.8rem">' + escapeText(p.customer_company) + '</span>' : '');
+      const notes = p.notes
+        ? '<details><summary class="muted" style="cursor:pointer">' + (p.notes.length > 40 ? escapeText(p.notes.slice(0, 40)) + '…' : escapeText(p.notes)) + '</summary>' +
+          '<div style="white-space:pre-wrap;margin-top:0.4rem;font-size:0.85rem">' + escapeText(p.notes) + '</div></details>'
+        : '<span class="muted">—</span>';
+      const actions = renderPurchaseActions(p);
+      html += '<tr>' +
+        '<td>' + escapeText(submitted) + '</td>' +
+        '<td>' + who + '</td>' +
+        '<td><span class="badge ' + escapeAttr(p.tier) + '">' + escapeText(p.tier) + '</span></td>' +
+        '<td>' + escapeText(String(p.seats)) + '</td>' +
+        '<td><span class="badge ' + statusBadgeClass(p.status) + '">' + escapeText(p.status) + '</span></td>' +
+        '<td>' + notes + '</td>' +
+        '<td>' + actions + '</td>' +
+      '</tr>';
+    }
+    html += '</tbody></table>';
+    block.innerHTML = html;
+    block.querySelectorAll('.purchase-action').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        setPurchaseStatus(btn.getAttribute('data-id'), btn.getAttribute('data-status'));
+      });
+    });
+  }
+
+  function renderPurchaseActions(p) {
+    const btn = function (status, label) {
+      return '<button type="button" class="btn btn-secondary purchase-action" ' +
+        'data-id="' + escapeAttr(p.id) + '" data-status="' + escapeAttr(status) + '" ' +
+        'style="padding:0.3rem 0.7rem;font-size:0.8rem;margin-right:0.25rem">' + label + '</button>';
+    };
+    if (p.status === 'pending') return btn('paid', 'Mark paid') + btn('cancelled', 'Cancel');
+    if (p.status === 'paid')    return btn('pending', 'Reopen') + btn('cancelled', 'Cancel');
+    return btn('pending', 'Reopen');
+  }
+
+  function statusBadgeClass(s) {
+    if (s === 'paid')      return 'professional';
+    if (s === 'cancelled') return 'muted';
+    return 'free'; // pending -> green like "active"
+  }
+
+  async function setPurchaseStatus(id, status) {
+    if (!id || !status) return;
+    try {
+      const res = await fetch('/api/admin/purchase/' + encodeURIComponent(id) + '/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: status }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showAlert('error', 'Status update failed: ' + (data.error || res.status));
+      } else {
+        showAlert('success', 'Marked ' + status + '.');
+        await refreshPurchases();
+      }
+    } catch (err) {
+      showAlert('error', 'Network error: ' + err.message);
+    }
   }
 
   async function refreshCustomers() {

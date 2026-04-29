@@ -49,18 +49,30 @@ export function timingSafeEqual(a: string, b: string): boolean {
 // ---------- PEM <-> CryptoKey helpers ----------
 
 function pemBodyToBytes(pem: string): Uint8Array {
-  // Strip BEGIN/END framing then keep only base64 characters. We can't just
-  // strip whitespace — secrets pasted through `wrangler secret put` (or
-  // round-tripped through JSON / dotenv) often arrive with literal "\n"
-  // escape sequences, BOMs, or smart quotes mixed in. Filtering to the
-  // base64 alphabet is the most forgiving fix that's still correct.
-  const body = pem
-    .replace(/-----BEGIN [^-]+-----/g, '')
-    .replace(/-----END [^-]+-----/g, '')
-    .replace(/[^A-Za-z0-9+/=]/g, '');
+  // Extract only what's strictly between the first BEGIN/END pair, then
+  // filter to base64 alphabet. This is robust against:
+  //   * literal "\n" escape sequences from JSON/dotenv round-trips
+  //   * BOMs, smart quotes, surrounding whitespace
+  //   * decorative "===== HEADER =====" lines accidentally pasted alongside
+  //     the key (a common foot-gun when copying full script output)
+  //   * a second concatenated PEM (e.g. private+public both pasted into one
+  //     secret — only the first key is used, but at least it imports)
+  const match = /-----BEGIN [^-\r\n]+-----([\s\S]*?)-----END [^-\r\n]+-----/.exec(pem);
+  let body: string;
+  if (match) {
+    body = match[1]!.replace(/[^A-Za-z0-9+/=]/g, '');
+  } else {
+    // Fallback: caller pasted just the base64 body, no framing.
+    body = pem.replace(/[^A-Za-z0-9+/=]/g, '');
+  }
   if (body.length === 0) {
     throw new Error(
       'PEM body is empty after stripping framing — secret may be missing or corrupt',
+    );
+  }
+  if (body.length % 4 !== 0) {
+    throw new Error(
+      `PEM body length ${body.length} is not a multiple of 4 — secret is truncated or contains stray characters`,
     );
   }
   return base64ToBytes(body);

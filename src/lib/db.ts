@@ -398,6 +398,67 @@ export async function recordPurchaseIntent(
   };
 }
 
+export type PurchaseStatus = Purchase['status'];
+
+export type PurchaseWithCustomer = Purchase & {
+  customer_email: string;
+  customer_name: string | null;
+  customer_company: string | null;
+};
+
+/**
+ * List purchases joined with customer info for the admin UI. Pass a
+ * status to filter; pass null/undefined for all.
+ */
+export async function listPurchases(
+  db: D1Database,
+  status: PurchaseStatus | null | undefined,
+  limit = 200,
+): Promise<PurchaseWithCustomer[]> {
+  const stmt = status
+    ? db
+        .prepare(
+          `SELECT p.*,
+                  c.email   AS customer_email,
+                  c.name    AS customer_name,
+                  c.company AS customer_company
+             FROM purchases p
+             JOIN customers c ON c.id = p.customer_id
+            WHERE p.status = ?1
+            ORDER BY p.created_at DESC
+            LIMIT ?2`,
+        )
+        .bind(status, limit)
+    : db
+        .prepare(
+          `SELECT p.*,
+                  c.email   AS customer_email,
+                  c.name    AS customer_name,
+                  c.company AS customer_company
+             FROM purchases p
+             JOIN customers c ON c.id = p.customer_id
+            ORDER BY p.created_at DESC
+            LIMIT ?1`,
+        )
+        .bind(limit);
+  const res = await stmt.all<PurchaseWithCustomer>();
+  return res.results ?? [];
+}
+
+export async function updatePurchaseStatus(
+  db: D1Database,
+  id: string,
+  status: PurchaseStatus,
+): Promise<{ updated: boolean }> {
+  const res = await db
+    .prepare(
+      `UPDATE purchases SET status = ?2, updated_at = ?3 WHERE id = ?1`,
+    )
+    .bind(id, status, nowSeconds())
+    .run();
+  return { updated: !!res.meta.changes };
+}
+
 export function isAdminEmail(env: Env, email: string): boolean {
   const list = (env.ADMIN_EMAILS ?? '')
     .split(',')

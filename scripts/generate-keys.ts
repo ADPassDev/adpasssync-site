@@ -2,15 +2,19 @@
 //
 //   node --experimental-strip-types scripts/generate-keys.ts
 //
-// Outputs PKCS#8 (private) and SPKI (public) PEM strings — the same formats
-// the Worker imports via crypto.subtle.importKey. Pipe into wrangler:
+// Writes two files in the working directory:
+//   license-private.pem  (PKCS#8)
+//   license-public.pem   (SPKI)
 //
-//   wrangler secret put LICENSE_PRIVATE_KEY
-//   wrangler secret put LICENSE_PUBLIC_KEY
-//
-// Keep the private key out of git.
+// Pipe each file straight into `wrangler secret put` so the PEM never has
+// to round-trip through your clipboard — that round-trip is the most common
+// cause of "atob() invalid base64" errors at runtime, because pasting can
+// introduce stray decorator characters, BOMs, or literal "\n" escape
+// sequences.
 
 import { generateKeyPairSync } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
@@ -18,16 +22,22 @@ const { privateKey, publicKey } = generateKeyPairSync('rsa', {
   privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
 });
 
-// Write to stdout / stderr separately so the user can redirect each.
-process.stdout.write('===== PRIVATE KEY (LICENSE_PRIVATE_KEY) =====\n');
-process.stdout.write(privateKey);
-process.stdout.write('\n===== PUBLIC KEY  (LICENSE_PUBLIC_KEY)  =====\n');
-process.stdout.write(publicKey);
-process.stdout.write('\n');
+const privPath = resolve(process.cwd(), 'license-private.pem');
+const pubPath = resolve(process.cwd(), 'license-public.pem');
+
+writeFileSync(privPath, privateKey, { mode: 0o600 });
+writeFileSync(pubPath, publicKey, { mode: 0o644 });
 
 process.stderr.write(
-  '\nSet the secrets:\n' +
-    '  wrangler secret put LICENSE_PRIVATE_KEY  # paste the private block above\n' +
-    '  wrangler secret put LICENSE_PUBLIC_KEY   # paste the public block above\n' +
-    '\nShip the public key with your installer so it can verify license signatures.\n',
+  `\nWrote:\n  ${privPath}\n  ${pubPath}\n\n` +
+    `Set the secrets without copy-pasting:\n\n` +
+    `  PowerShell:\n` +
+    `    Get-Content license-private.pem -Raw | npx wrangler secret put LICENSE_PRIVATE_KEY\n` +
+    `    Get-Content license-public.pem  -Raw | npx wrangler secret put LICENSE_PUBLIC_KEY\n\n` +
+    `  bash / zsh:\n` +
+    `    npx wrangler secret put LICENSE_PRIVATE_KEY < license-private.pem\n` +
+    `    npx wrangler secret put LICENSE_PUBLIC_KEY  < license-public.pem\n\n` +
+    `Delete the .pem files once the secrets are set:\n` +
+    `  Remove-Item license-*.pem    # PowerShell\n` +
+    `  rm license-*.pem             # bash\n`,
 );
