@@ -3,6 +3,7 @@
 export type Env = {
   DB: D1Database;
   INSTALLER_BUCKET: R2Bucket;
+  HASHDB_BUCKET: R2Bucket;
   ASSETS: Fetcher;
 
   // Plain config (vars).
@@ -13,6 +14,9 @@ export type Env = {
   FROM_EMAIL: string;
   INSTALLER_OBJECT_KEY: string;
   DEV_RETURN_MAGIC_LINK: string;
+  HASHDB_BLOOM_KEY: string;
+  HASHDB_SHA256_KEY: string;
+  HASHDB_META_KEY: string;
 
   // Secrets (set via `wrangler secret put`).
   LICENSE_PRIVATE_KEY?: string;

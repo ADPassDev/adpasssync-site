@@ -14,7 +14,8 @@
 		"directory": "./public",
 		"binding": "ASSETS",
 		"run_worker_first": [
-			"/api/*"
+			"/api/*",
+			"/downloads/*"
 		]
 	},
 	"observability": {
@@ -28,11 +29,19 @@
 			"database_id": "3b20d3ea-c2fd-4785-8587-19adbef6d025"
 		}
 	],
-	// R2 bucket holding the base MSI installer and any other release artifacts.
+	// R2 buckets:
+	//   INSTALLER_BUCKET — base MSI installer and release artifacts.
+	//   HASHDB_BUCKET    — pre-built bloom filter (hashdb.bin + .sha256 + .json)
+	//                      served under /downloads/* for customers who don't
+	//                      want to run the multi-hour HIBP build themselves.
 	"r2_buckets": [
 		{
 			"binding": "INSTALLER_BUCKET",
 			"bucket_name": "adpasssync-installers"
+		},
+		{
+			"binding": "HASHDB_BUCKET",
+			"bucket_name": "adpasssync-hashdb"
 		}
 	],
 	// Plain (non-secret) configuration. Secrets are added via
@@ -49,6 +58,12 @@
 		"MAGIC_LINK_TTL_MINUTES": "15",
 		"FROM_EMAIL": "no-reply@adpasssync.com",
 		"INSTALLER_OBJECT_KEY": "current/ADPassSync-Setup.msi",
-		"DEV_RETURN_MAGIC_LINK": "false"
+		"DEV_RETURN_MAGIC_LINK": "false",
+		// Object keys inside HASHDB_BUCKET. "current/" is the live channel
+		// served at /downloads/*. Archived builds live under archive/<version>/
+		// and aren't routed publicly.
+		"HASHDB_BLOOM_KEY": "current/hashdb.bin",
+		"HASHDB_SHA256_KEY": "current/hashdb.sha256",
+		"HASHDB_META_KEY": "current/hashdb.json"
 	}
 }

@@ -1,10 +1,12 @@
 // ADPassSync site Worker.
 //
 // Routing model:
-//   /api/*   -> Hono Worker (this file)
+//   /api/*        -> Hono Worker (this file)
+//   /downloads/*  -> Hono Worker (R2-backed pre-built bloom filter)
 //   anything else -> Cloudflare static assets (public/), configured in
 //                    wrangler.jsonc. Static assets win the race; the Worker
-//                    only sees /api/* due to `assets.run_worker_first`.
+//                    only sees /api/* and /downloads/* due to
+//                    `assets.run_worker_first`.
 
 import { Hono } from 'hono';
 import type { Env, Variables } from './types';
@@ -12,6 +14,7 @@ import { loadSession, requireAdmin, requireAuth } from './lib/auth';
 import authRoutes from './routes/auth';
 import portalRoutes from './routes/portal';
 import adminRoutes from './routes/admin';
+import downloadsRoutes from './routes/downloads';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -41,6 +44,11 @@ app.use('/api/*', loadSession);
 // Authentication endpoints (no auth required).
 app.route('/api/auth', authRoutes);
 
+// Public R2-backed downloads for the pre-built bloom filter. No auth — the
+// bloom only contains hashes of publicly available HIBP data, and the agents
+// fetching it can't authenticate without burning per-install API keys.
+app.route('/downloads', downloadsRoutes);
+
 // Customer portal — must be signed in.
 const portalApp = new Hono<{ Bindings: Env; Variables: Variables }>();
 portalApp.use('*', requireAuth);
@@ -53,10 +61,10 @@ adminApp.use('*', requireAdmin);
 adminApp.route('/', adminRoutes);
 app.route('/api/admin', adminApp);
 
-// JSON 404 for any unmatched /api path. Non-/api paths never reach the
-// Worker (assets handle them), but in case run_worker_first changes:
+// JSON 404 for any unmatched /api or /downloads path. Other paths never reach
+// the Worker (assets handle them), but in case run_worker_first changes:
 app.notFound((c) => {
-  if (c.req.path.startsWith('/api/')) {
+  if (c.req.path.startsWith('/api/') || c.req.path.startsWith('/downloads/')) {
     return c.json({ error: 'not_found' }, 404);
   }
   // Fall through to assets.
