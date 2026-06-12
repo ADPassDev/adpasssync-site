@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Software License Agreement — ADPassSync</title>
+    <meta name="description" content="ADPassSync End User License Agreement covering Evaluation, Free Edition, and Professional Subscription licenses.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0a0e1a;
+            --bg-card: #111827;
+            --bg-card-hover: #1a2236;
+            --border: #1e293b;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.15);
+            --accent-hover: #60a5fa;
+            --green: #10b981;
+        }
+
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* NAV (matches index) */
+        nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            background: rgba(10, 14, 26, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-inner {
+            max-width: 1200px; margin: 0 auto;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.75rem 2rem;
+        }
+        .nav-left { display: flex; align-items: center; gap: 1rem; }
+        .toc-toggle {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text-muted); cursor: pointer;
+            padding: 0.4rem 0.85rem; border-radius: 8px;
+            font-family: inherit; font-size: 0.85rem; font-weight: 500;
+            transition: color 0.2s, border-color 0.2s, background 0.2s;
+        }
+        .toc-toggle:hover { color: var(--text); border-color: var(--text-muted); background: var(--bg-card); }
+        .toc-toggle .toc-icon { font-size: 1rem; line-height: 1; }
+        .nav-logo {
+            font-size: 1.25rem; font-weight: 700; color: var(--text);
+            text-decoration: none; display: flex; align-items: center; gap: 0.5rem;
+        }
+        .nav-logo .logo-icon {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            object-fit: contain;
+            display: block;
+        }
+        .nav-links { display: flex; gap: 2rem; align-items: center; }
+        .nav-links a {
+            color: var(--text-muted); text-decoration: none; font-size: 0.9rem;
+            font-weight: 500; transition: color 0.2s;
+        }
+        .nav-links a:hover { color: var(--text); }
+        .nav-cta {
+            background: var(--accent) !important; color: white !important;
+            padding: 0.5rem 1.25rem; border-radius: 8px;
+            font-weight: 600 !important; transition: background 0.2s !important;
+        }
+        .nav-cta:hover { background: var(--accent-hover) !important; }
+
+        /* PAGE */
+        .page {
+            max-width: 820px; margin: 0 auto;
+            padding: 8rem 2rem 4rem;
+        }
+        .page-header { margin-bottom: 3rem; }
+        .section-label {
+            font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.1em; color: var(--accent); margin-bottom: 0.75rem;
+        }
+        .page-title {
+            font-size: clamp(2rem, 4vw, 2.75rem); font-weight: 800;
+            line-height: 1.15; margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--text) 0%, var(--text-muted) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .page-subtitle {
+            font-size: 1.05rem; color: var(--text-muted);
+        }
+
+        .toc {
+            position: fixed; top: 4.25rem; left: 1.5rem; z-index: 101;
+            width: min(280px, calc(100vw - 3rem));
+            max-height: calc(100vh - 5.5rem); overflow-y: auto;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.25rem 1.5rem;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+            display: none;
+        }
+        .toc.open { display: block; }
+        .toc-label {
+            font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 0.85rem;
+        }
+        .toc ol {
+            list-style: none; counter-reset: toc;
+            display: flex; flex-direction: column; gap: 0.45rem;
+        }
+        .toc ol li {
+            counter-increment: toc; font-size: 0.9rem;
+        }
+        .toc ol li::before {
+            content: counter(toc) ". ";
+            color: var(--text-dim); font-variant-numeric: tabular-nums;
+        }
+        .toc ol li a {
+            color: var(--text-muted); text-decoration: none;
+        }
+        .toc ol li a:hover { color: var(--accent); }
+
+        .preamble {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem 1.75rem;
+            margin-bottom: 3rem;
+            font-size: 0.95rem; color: var(--text-muted);
+        }
+
+        .eula h2 {
+            font-size: 1.35rem; font-weight: 700; color: var(--text);
+            margin-top: 3rem; margin-bottom: 1rem;
+            scroll-margin-top: 5rem;
+        }
+        .eula h3 {
+            font-size: 1.05rem; font-weight: 600; color: var(--text);
+            margin-top: 1.75rem; margin-bottom: 0.75rem;
+        }
+        .eula p {
+            color: var(--text-muted); margin-bottom: 1rem;
+            font-size: 0.97rem;
+        }
+        .eula ol, .eula ul {
+            margin: 0 0 1rem 1.25rem; color: var(--text-muted);
+            font-size: 0.97rem;
+        }
+        .eula ol li, .eula ul li { margin-bottom: 0.4rem; }
+        .eula em.term { color: var(--text); font-style: normal; font-weight: 600; }
+
+        .updated {
+            margin-top: 3rem; padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem; color: var(--text-dim);
+        }
+
+        /* FOOTER */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 3rem 2rem;
+        }
+        .footer-inner {
+            max-width: 1200px; margin: 0 auto;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 1rem;
+        }
+        .footer-text { font-size: 0.85rem; color: var(--text-dim); }
+        .footer-links { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+        .footer-links a { color: var(--text-dim); text-decoration: none; font-size: 0.85rem; }
+        .footer-links a:hover { color: var(--text-muted); }
+
+        .nav-toggle { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; }
+        @media (max-width: 768px) {
+            .nav-links { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg); border-bottom: 1px solid var(--border); padding: 1rem 2rem; gap: 1rem; }
+            .nav-links.open { display: flex; }
+            .nav-toggle { display: block; }
+            .nav-inner { padding: 0.75rem 1rem; }
+            .nav-left { gap: 0.5rem; }
+            .toc-toggle { padding: 0.4rem 0.6rem; }
+            .toc-toggle-label { display: none; }
+            .toc { left: 1rem; width: calc(100vw - 2rem); }
+            .page { padding: 6.5rem 1.25rem 3rem; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-inner">
+        <div class="nav-left">
+            <button class="toc-toggle" type="button" onclick="document.querySelector('.toc').classList.toggle('open')" aria-label="Toggle table of contents" aria-expanded="false">
+                <span class="toc-icon" aria-hidden="true">&#9776;</span>
+                <span class="toc-toggle-label">Contents</span>
+            </button>
+            <a href="/" class="nav-logo">
+                <img class="logo-icon" src="../brand/logo.png" alt="">
+                ADPassSync
+            </a>
+        </div>
+        <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">&#9776;</button>
+        <div class="nav-links">
+            <a href="/#features">Features</a>
+            <a href="/#architecture">Architecture</a>
+            <a href="/#pricing">Pricing</a>
+            <a href="/portal/">Sign in</a>
+            <a href="/portal/" class="nav-cta">Get Started Free</a>
+        </div>
+    </div>
+</nav>
+
+<main class="page">
+    <div class="page-header">
+        <div class="section-label">Legal</div>
+        <h1 class="page-title">Software License Agreement</h1>
+        <p class="page-subtitle">This License Agreement details the policy for license of ADPassSync (the &ldquo;Licensed Software&rdquo;) covering the Evaluation License, Free Edition, Professional Subscription, and Technical Support.</p>
+    </div>
+
+    <div class="preamble">
+        Please read the following license carefully, before either (i) completing the electronic order or download of the Licensed Software from an authorised website, or (ii) installing the Licensed Software from media that was delivered after being ordered by alternative order process, as applicable. You acknowledge that you have read this License Agreement, have understood it, and agree to be bound by its terms. If you do not agree to the terms and conditions of this Agreement, either (i) exit the website page without continuing the ordering process, or (ii) return the provided unused media and documentation within thirty (30) days from the date of shipment of the Licensed Software for a full refund of your payment, as applicable.
+    </div>
+
+    <nav class="toc" aria-label="Table of contents">
+        <div class="toc-label">Contents</div>
+        <ol>
+            <li><a href="#s1">Evaluation License</a></li>
+            <li><a href="#s2">Commercial License</a></li>
+            <li><a href="#s3">Third Party Products</a></li>
+            <li><a href="#s4">Restrictions on Use</a></li>
+            <li><a href="#s5">Technical Support</a></li>
+            <li><a href="#s6">License Validation &amp; Usage</a></li>
+            <li><a href="#s7">Ownership &amp; IP</a></li>
+            <li><a href="#s8">Audit</a></li>
+            <li><a href="#s9">Confidentiality</a></li>
+            <li><a href="#s10">Warranty Disclaimer</a></li>
+            <li><a href="#s11">Limitation of Liability</a></li>
+            <li><a href="#s12">Indemnification</a></li>
+            <li><a href="#s13">Termination</a></li>
+            <li><a href="#s14">General</a></li>
+        </ol>
+    </nav>
+
+    <article class="eula">
+        <h2 id="s1">1. Evaluation License</h2>
+        <p>ADPassSync grants to you a non-exclusive, non-transferable, Evaluation License for trial and evaluation of the Professional features of the Licensed Software, in binary object code form, for a period of thirty (30) days from the date of download or installation. This License begins upon downloading or installing the Licensed Software and ends thirty (30) days thereafter (the &ldquo;<em class="term">Evaluation Period</em>&rdquo;).</p>
+        <p>If you are not willing to use the Licensed Software, either the Free Edition or the Professional Edition, after the Evaluation Period, you agree to remove the software from your environment with immediate effect. You are forbidden from using the Licensed Software for any other use or otherwise offering it for resale under the terms of this Section 1. ADPassSync retains all rights not specifically granted to you herein.</p>
+
+        <h2 id="s2">2. Commercial License</h2>
+
+        <h3>(a) Free Edition</h3>
+        <p>Where applicable, if you choose to use the Free Edition beyond the Evaluation Period, the Licensed Software allows you to manage password operations for a maximum of fifty (50) Active Directory users within a single forest. ADPassSync grants you a non-exclusive, non-transferable, worldwide license to use the Licensed Software for no cost in perpetuity, subject to the user count limit and the other terms of this Agreement.</p>
+        <p>For purposes of this Agreement, an &ldquo;<em class="term">Active Directory user</em>&rdquo; means any enabled user account in any directory partition managed by, synchronized with, or otherwise serviced by the Licensed Software, including service accounts and shared accounts.</p>
+
+        <h3>(b) Professional Edition Subscription License</h3>
+        <p>As part of your choosing to license the Subscription Model, ADPassSync grants you a fee-bearing, non-exclusive, non-transferable, worldwide license to Use the Licensed Software including user documentation that you have downloaded from or received on media provided by ADPassSync, including all updates, where applicable, provided that such access and Use of the Licensed Software is in accordance with the Forest Deployment License granted by ADPassSync. &ldquo;<em class="term">Use</em>&rdquo; means storing, locating, installing, executing or displaying the Licensed Software. &ldquo;<em class="term">Forest Deployment License</em>&rdquo; means that the Licensed Software (including its domain controller agent, synchronization service, and self-service portal components) may be installed and operated within a single Active Directory forest, to manage password operations for the number of Active Directory users for which fees have been paid.</p>
+        <p>Subscription fees are calculated at the then-current per-user rate for each Active Directory user beyond the first fifty (50), billed annually. ADPassSync may adjust the per-user rate for renewal terms upon notice.</p>
+        <p>Under the Subscription License, the Licensed Software is licensed only for the intended duration. If you do not renew the Subscription beyond the duration, you agree either (i) to revert to operation under the Free Edition limits set out in Section 2(a), or (ii) to stop using the software and remove the Licensed Software from your systems.</p>
+        <p>To continue using the Licensed Software beyond the subscribed duration, you must renew your license at least 10 days before the expiry of the term. As part of the Subscription License, all Updates, Upgrades, e-mail support for problem reporting, and online access to product documentation will be provided to you at no additional cost during the intended period.</p>
+
+        <h2 id="s3">3. Third Party Products</h2>
+        <p>The Licensed Software may contain software which originated with third party vendors and without limiting the general applicability of the other provisions of this Agreement, you agree that (a) the title to any third party software incorporated in the Licensed Software shall remain with the third party which supplied the same; and (b) you will not distribute any such third party software available with the Licensed Software, unless the license terms of such third party software provide otherwise.</p>
+
+        <h2 id="s4">4. Restrictions on Use</h2>
+        <p>In addition to all other terms and conditions of this Agreement, you shall not:</p>
+        <ol type="i">
+            <li>operate the Licensed Software for more Active Directory users than your license tier permits, or extend a single license to more than one Active Directory forest;</li>
+            <li>make any copies except for the required number of copies for application back-up, redundancy, archival or for temporary emergency purpose;</li>
+            <li>remove any copyright, trademark or other proprietary notices from the Licensed Software or its copies;</li>
+            <li>rent, lease, license, sublicense or distribute the Licensed Software or any portions of it on a standalone basis or as part of your application;</li>
+            <li>modify or enhance the Licensed Software;</li>
+            <li>reverse engineer, decompile or disassemble the Licensed Software, except to the extent such restriction is prohibited by applicable law;</li>
+            <li>allow any third parties to access, use or support the Licensed Software, except your own employees and contractors operating the software on your behalf and bound by terms at least as protective as those in this Agreement;</li>
+            <li>tamper with, bypass, or disable any license validation, license file verification, user-count enforcement, or other technical protection measures included in the Licensed Software.</li>
+        </ol>
+
+        <h2 id="s5">5. Technical Support</h2>
+        <p>As part of the Subscription License, ADPassSync provides support that includes email support for problem reporting, product updates, upgrades and online access to product documentation at no additional cost for the period of subscription. Technical Support, including online access to product documentation, product updates, upgrades, service packs, email and phone support, is not included as part of the Free Edition. You may purchase technical support services for the Free Edition by paying the then-current maintenance and support fee, where offered.</p>
+
+        <h2 id="s6">6. License Validation and Collection of Usage Details</h2>
+        <p>The Licensed Software validates its license entitlement by means of a signed license file or equivalent mechanism. This validation may include verifying license signatures, license expiry, and the number of Active Directory users covered by your license. Validation data is processed locally within your environment.</p>
+        <p>ADPassSync does not by default collect usage telemetry from your deployment. Where you enable optional features that involve communication with ADPassSync (for example, online license activation, breached-password lookups against an external service, or opt-in diagnostic reporting), the data exchanged is limited to that necessary to provide the requested feature. You may disable such optional features through the Licensed Software's user interface or configuration.</p>
+
+        <h2 id="s7">7. Ownership and Intellectual Property</h2>
+        <p>ADPassSync owns all right, title and interest in and to the Licensed Software. ADPassSync expressly reserves all rights not granted to you herein, notwithstanding the right to discontinue or not to release any Licensed Software and to alter prices, features, specifications, capabilities, functions, licensing terms, release dates, general availability or characteristics of the Licensed Software. The Licensed Software is only licensed and not sold to you by ADPassSync.</p>
+
+        <h2 id="s8">8. Audit</h2>
+        <p>ADPassSync has the right to audit your Use of the Licensed Software by providing at least seven (7) days prior written notice of its intention to conduct such an audit at your facilities during normal business hours. You agree to cooperate with such audit and to provide reasonable access to records, systems, and personnel necessary to verify compliance with this Agreement, including the number of Active Directory users serviced by the Licensed Software.</p>
+
+        <h2 id="s9">9. Confidentiality</h2>
+        <p>The Licensed Software contains proprietary information of ADPassSync that is protected by applicable intellectual property laws and you hereby agree to take all reasonable efforts to maintain the confidentiality of the Licensed Software. You agree to reasonably communicate the terms and conditions of this Agreement to those persons employed by you who come into contact with or access the Licensed Software, and to use reasonable efforts to ensure their compliance with such terms and conditions, including but not limited to, not knowingly permitting such persons to use any portion of the Licensed Software for a purpose that is not allowed under this Agreement.</p>
+
+        <h2 id="s10">10. Warranty Disclaimer</h2>
+        <p>ADPassSync does not warrant that the Licensed Software will be error-free. Except as provided herein, the Licensed Software is furnished &ldquo;as is&rdquo; without warranty of any kind, including the warranties of merchantability and fitness for a particular purpose and without warranty as to the performance or results you may obtain by using the Licensed Software. You are solely responsible for determining the appropriateness of using the Licensed Software and assume all risks associated with the use of it, including but not limited to the risks of program errors, damage to or loss of data, programs or equipment, unavailability or interruption of operations, and any impact on your Active Directory environment or password infrastructure.</p>
+        <p>Because some jurisdictions do not allow for the exclusion or limitation of implied warranties, the above exclusions or limitations may not apply to you.</p>
+
+        <h2 id="s11">11. Limitation of Liability</h2>
+        <p>In no event will ADPassSync be liable to you or any third party for any special, incidental, indirect, punitive or exemplary or consequential damages, or damages for loss of business, loss of profits, business interruption, or loss of business information arising out of the use or inability to use the program or for any claim by any other party even if ADPassSync has been advised of the possibility of such damages. ADPassSync's entire liability with respect to its obligations under this Agreement or otherwise with respect to the Licensed Software shall not exceed the amount of the license fees paid by you to ADPassSync for the Licensed Software in the twelve (12) months preceding the claim.</p>
+        <p>Because some jurisdictions do not allow the exclusion or limitation of liability for incidental or consequential damages, the above exclusions or limitations may not apply to you.</p>
+
+        <h2 id="s12">12. Indemnification</h2>
+        <p>ADPassSync agrees to indemnify and defend you from and against any and all claims, actions or proceedings, arising out of any claim that the Licensed Software infringes or violates any valid patent, copyright or trade secret right of any third party; so long as you provide: (i) prompt written notice to ADPassSync of such claim; (ii) cooperate with ADPassSync in the defense and/or settlement thereof, at ADPassSync's expense; and (iii) allow ADPassSync to control the defense and all related settlement negotiations. The above is ADPassSync's sole obligation to you and shall be your sole and exclusive remedy pursuant to this Agreement for intellectual property infringement.</p>
+        <p>ADPassSync shall have no indemnity obligation for claims of infringement to the extent resulting or alleged to result from (i) any combination, operation, or use of the Licensed Software with any programs or equipment not supplied by ADPassSync; (ii) any modification of the Licensed Software by a party other than ADPassSync; and (iii) your failure, within a reasonable time frame, to implement any replacement or modification of the Licensed Software provided by ADPassSync.</p>
+
+        <h2 id="s13">13. Termination</h2>
+        <p>This Agreement is effective until terminated by either party. You may terminate this Agreement at any time by destroying or returning to ADPassSync all copies of the Licensed Software in your possession. ADPassSync may terminate this Agreement for any reason, including but not limited to your breach of any of the terms of this Agreement. Upon termination, you shall destroy or return to ADPassSync all copies of the Licensed Software and certify in writing that all known copies have been destroyed. All provisions relating to confidentiality, proprietary rights, non-disclosure, ownership, audit and limitation of liability shall survive the termination of this Agreement.</p>
+
+        <h2 id="s14">14. General</h2>
+        <p>This Agreement shall be construed, interpreted and governed by the laws of [STATE/JURISDICTION] exclusive of its conflicts of law provisions. This Agreement constitutes the entire agreement between the parties, and supersedes all prior communications, understandings or agreements between the parties. Any waiver or modification of this Agreement shall only be effective if it is in writing and signed by both parties hereto. If any part of this Agreement is found invalid or unenforceable, the remainder shall be interpreted so as to reasonably effect the intention of the parties. You shall not export the Licensed Software or your application containing the Licensed Software except in compliance with applicable export regulations and other applicable laws and regulations.</p>
+
+        <p class="updated">For licensing inquiries, contact ADPassSync via the <a href="/#contact" style="color: var(--accent); text-decoration: none;">contact form</a>.<br>Last updated: 29 April 2026.</p>
+    </article>
+</main>
+
+<script>
+    (function () {
+        var toc = document.querySelector('.toc');
+        var btn = document.querySelector('.toc-toggle');
+        function close() { toc.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+        btn.addEventListener('click', function () {
+            btn.setAttribute('aria-expanded', toc.classList.contains('open') ? 'true' : 'false');
+        });
+        toc.querySelectorAll('a').forEach(function (a) { a.addEventListener('click', close); });
+        document.addEventListener('click', function (e) {
+            if (toc.classList.contains('open') && !toc.contains(e.target) && !btn.contains(e.target)) close();
+        });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+    })();
+</script>
+
+<footer>
+    <div class="footer-inner">
+        <div class="footer-text">&copy; 2026 ADPassSync. All rights reserved.</div>
+        <div class="footer-links">
+            <a href="/#features">Features</a>
+            <a href="/#architecture">Architecture</a>
+            <a href="/#pricing">Pricing</a>
+            <a href="/#contact">Contact</a>
+            <a href="/legal/eula.html">EULA</a>
+        </div>
+    </div>
+</footer>
+
+</body>
+</html>
