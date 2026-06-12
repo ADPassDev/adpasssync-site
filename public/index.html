@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ADPassSync — Self-Service Active Directory Password Management</title>
-    <meta name="description" content="ADPassSync provides self-service password reset, MFA enforcement, and breach detection for Active Directory environments. Secure your identity infrastructure.">
+    <meta name="description" content="ADPassSync provides self-service password reset, MFA enforcement, advanced password policy, breach detection, and LDAP sync for Active Directory. Secure your identity infrastructure, on-premises.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -25,7 +25,10 @@
             --green: #10b981;
             --green-glow: rgba(16, 185, 129, 0.15);
             --orange: #f59e0b;
+            --orange-glow: rgba(245, 158, 11, 0.15);
             --purple: #8b5cf6;
+            --purple-glow: rgba(139, 92, 246, 0.15);
+            --red: #ef4444;
         }
 
         html { scroll-behavior: smooth; }
@@ -54,9 +57,10 @@
             text-decoration: none; display: flex; align-items: center; gap: 0.5rem;
         }
         .nav-logo .logo-icon {
-            width: 32px; height: 32px; background: var(--accent);
-            border-radius: 8px; display: flex; align-items: center; justify-content: center;
-            font-size: 0.85rem; font-weight: 800; color: white;
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            object-fit: contain;
+            display: block;
         }
         .nav-links { display: flex; gap: 2rem; align-items: center; }
         .nav-links a {
@@ -89,6 +93,7 @@
             background: var(--bg-card); border: 1px solid var(--border);
             padding: 0.4rem 1rem; border-radius: 100px;
             font-size: 0.8rem; color: var(--text-muted); margin-bottom: 2rem;
+            position: relative;
         }
         .hero-badge span { color: var(--green); font-weight: 600; }
         .hero h1 {
@@ -97,6 +102,7 @@
             background: linear-gradient(135deg, var(--text) 0%, var(--text-muted) 100%);
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
             background-clip: text;
+            position: relative;
         }
         .hero h1 em {
             font-style: normal;
@@ -106,9 +112,16 @@
         }
         .hero p {
             font-size: 1.2rem; color: var(--text-muted);
-            max-width: 640px; margin: 0 auto 2.5rem;
+            max-width: 680px; margin: 0 auto 2.5rem;
+            position: relative;
         }
-        .hero-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+        .hero-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; position: relative; }
+        .hero-trust {
+            margin-top: 2.5rem; display: flex; gap: 2rem; justify-content: center;
+            flex-wrap: wrap; font-size: 0.85rem; color: var(--text-dim); position: relative;
+        }
+        .hero-trust span { display: inline-flex; align-items: center; gap: 0.4rem; }
+        .hero-trust span::before { content: '\2713'; color: var(--green); font-weight: 700; }
         .btn {
             display: inline-flex; align-items: center; gap: 0.5rem;
             padding: 0.85rem 2rem; border-radius: 10px;
@@ -141,7 +154,7 @@
         .section-header.center { text-align: center; }
         .section-header.center .section-subtitle { margin: 0 auto; }
 
-        /* ARCHITECTURE */
+        /* ARCHITECTURE OVERVIEW DIAGRAM */
         .arch-diagram {
             background: var(--bg-card); border: 1px solid var(--border);
             border-radius: 16px; padding: 3rem;
@@ -165,105 +178,272 @@
             font-size: 0.85rem; color: var(--text-dim);
         }
 
-        /* FEATURES */
-        .features-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 1.5rem;
+        /* FEATURE SPLIT ROWS */
+        .feature-row {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 4rem; align-items: center;
+            max-width: 1100px; margin: 0 auto;
         }
-        .feature-card {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 16px; padding: 2rem;
-            transition: all 0.2s;
-        }
-        .feature-card:hover { border-color: var(--accent); background: var(--bg-card-hover); }
-        .feature-icon {
+        .feature-row + .feature-row { margin-top: 7rem; }
+        .feature-row.reversed .feature-copy { order: 2; }
+        .feature-row.reversed .feature-visual { order: 1; }
+        .feature-badge {
             width: 48px; height: 48px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.25rem; margin-bottom: 1.25rem;
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 1.35rem; margin-bottom: 1.5rem;
         }
+        .feature-badge.blue { background: var(--accent-glow); }
+        .feature-badge.green { background: var(--green-glow); }
+        .feature-badge.orange { background: var(--orange-glow); }
+        .feature-badge.purple { background: var(--purple-glow); }
+        .feature-badge.red { background: rgba(239, 68, 68, 0.15); }
+        .feature-copy .eyebrow {
+            font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.1em; color: var(--accent); margin-bottom: 0.6rem;
+        }
+        .feature-copy h3 { font-size: 1.85rem; font-weight: 700; line-height: 1.2; margin-bottom: 1rem; }
+        .feature-copy > p { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 1.5rem; }
+        .feature-list { list-style: none; }
+        .feature-list li {
+            display: flex; align-items: flex-start; gap: 0.75rem;
+            padding: 0.5rem 0; font-size: 0.97rem; color: var(--text);
+        }
+        .feature-list li .check {
+            color: var(--green); flex-shrink: 0; margin-top: 0.1rem; font-weight: 700;
+        }
+        .feature-list li strong { font-weight: 600; }
+        .feature-list li span.txt { color: var(--text-muted); }
+
+        /* ===== MOCKUP PRIMITIVES ===== */
+        .mock {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 14px; overflow: hidden;
+            box-shadow: 0 30px 60px -20px rgba(0,0,0,0.6);
+        }
+        .mock-glow { position: relative; }
+        .mock-glow::before {
+            content: ''; position: absolute; inset: -1px;
+            background: radial-gradient(circle at 30% 0%, var(--accent-glow), transparent 70%);
+            border-radius: 16px; z-index: -1; pointer-events: none;
+        }
+        /* browser chrome */
+        .mock-bar {
+            display: flex; align-items: center; gap: 0.45rem;
+            padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--border);
+            background: rgba(255,255,255,0.02);
+        }
+        .mock-dot { width: 11px; height: 11px; border-radius: 50%; }
+        .mock-dot.r { background: #ef4444; } .mock-dot.y { background: #f59e0b; } .mock-dot.g { background: #10b981; }
+        .mock-url {
+            margin-left: 0.75rem; flex: 1; font-size: 0.72rem; color: var(--text-dim);
+            background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+            padding: 0.25rem 0.7rem; display: flex; align-items: center; gap: 0.4rem;
+        }
+        .mock-url .lock { color: var(--green); font-size: 0.7rem; }
+        .mock-body { padding: 1.75rem; }
+
+        /* generic form field mockup */
+        .mf-label { font-size: 0.72rem; color: var(--text-muted); margin: 0.9rem 0 0.35rem; font-weight: 500; }
+        .mf-input {
+            background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+            padding: 0.65rem 0.8rem; font-size: 0.82rem; color: var(--text);
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .mf-input.focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .mf-input .dots { letter-spacing: 0.18em; color: var(--text-muted); }
+        .mf-input .eye { color: var(--text-dim); font-size: 0.85rem; }
+        .mf-btn {
+            margin-top: 1.2rem; background: var(--accent); color: #fff;
+            text-align: center; padding: 0.7rem; border-radius: 8px;
+            font-size: 0.85rem; font-weight: 600;
+        }
+        .mf-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .mf-sub { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.4rem; }
+        .mf-logo {
+            display: inline-flex; align-items: center; gap: 0.45rem;
+            font-size: 0.85rem; font-weight: 700; margin-bottom: 1.1rem;
+        }
+        .mf-logo .lg { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(135deg, var(--accent), var(--purple)); display:inline-block; }
+
+        /* password strength meter */
+        .mf-meter { display: flex; gap: 4px; margin-top: 0.6rem; }
+        .mf-meter span { height: 4px; flex: 1; border-radius: 2px; background: var(--border); }
+        .mf-meter span.on { background: var(--green); }
+        .mf-rules { margin-top: 0.7rem; font-size: 0.7rem; }
+        .mf-rules div { display: flex; align-items: center; gap: 0.4rem; color: var(--text-muted); padding: 0.12rem 0; }
+        .mf-rules .ok { color: var(--green); }
+        .mf-rules .bad { color: var(--red); }
+
+        /* MFA step chip row */
+        .mf-steps { display: flex; gap: 0.5rem; margin-bottom: 1.1rem; }
+        .mf-steps .step {
+            flex: 1; text-align: center; font-size: 0.68rem; padding: 0.35rem;
+            border-radius: 6px; background: var(--bg); border: 1px solid var(--border); color: var(--text-dim);
+        }
+        .mf-steps .step.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+        .mf-steps .step.done { color: var(--green); border-color: rgba(16,185,129,0.4); }
+
+        /* OTP boxes */
+        .otp-row { display: flex; gap: 0.5rem; justify-content: center; margin: 1rem 0; }
+        .otp-row .box {
+            width: 38px; height: 46px; border-radius: 8px; background: var(--bg);
+            border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; font-weight: 700;
+        }
+        .otp-row .box.fill { border-color: var(--accent); color: var(--text); }
+        .otp-row .box.cursor { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+        /* QR code (CSS grid) */
+        .qr {
+            width: 130px; height: 130px; padding: 8px; background: #fff; border-radius: 10px;
+            display: grid; grid-template-columns: repeat(11, 1fr); grid-template-rows: repeat(11, 1fr);
+            gap: 1px;
+        }
+        .qr i { background: #0a0e1a; border-radius: 1px; }
+        .qr i.off { background: transparent; }
+
+        /* policy rule list */
+        .pol-row {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.7rem 0.8rem; border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+        }
+        .pol-row:last-child { border-bottom: none; }
+        .pol-row .ico { width: 26px; height: 26px; border-radius: 7px; background: var(--bg); display:flex; align-items:center; justify-content:center; font-size: 0.85rem; flex-shrink: 0; }
+        .pol-row .nm { flex: 1; }
+        .pol-row .nm small { display: block; color: var(--text-dim); font-size: 0.68rem; font-weight: 400; }
+        .pol-row .val { color: var(--text-muted); font-size: 0.72rem; }
+        /* toggle */
+        .toggle { width: 34px; height: 19px; border-radius: 20px; background: var(--green); position: relative; flex-shrink: 0; }
+        .toggle.off { background: var(--border); }
+        .toggle::after { content: ''; position: absolute; top: 2px; right: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; }
+        .toggle.off::after { right: auto; left: 2px; background: var(--text-dim); }
+
+        /* dashboard stat cards */
+        .dash-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+        .dash-stat { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 0.85rem; }
+        .dash-stat .k { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+        .dash-stat .v { font-size: 1.45rem; font-weight: 800; margin-top: 0.15rem; }
+        .dash-stat .d { font-size: 0.68rem; margin-top: 0.1rem; }
+        .dash-stat .d.up { color: var(--green); }
+        .dash-stat .d.dn { color: var(--orange); }
+        .dash-bars { display: flex; align-items: flex-end; gap: 5px; height: 64px; padding: 0.5rem 0.2rem 0; }
+        .dash-bars i { flex: 1; background: linear-gradient(180deg, var(--accent), rgba(59,130,246,0.25)); border-radius: 3px 3px 0 0; }
+        .dash-table { margin-top: 0.9rem; }
+        .dash-tr { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0; border-top: 1px solid var(--border); font-size: 0.72rem; }
+        .dash-av { width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--purple)); flex-shrink: 0; font-size: 0.6rem; display:flex; align-items:center; justify-content:center; font-weight:700; color:#fff; }
+        .dash-tr .who { flex: 1; }
+        .dash-tr .who small { display: block; color: var(--text-dim); font-size: 0.64rem; }
+        .pill { font-size: 0.62rem; padding: 0.12rem 0.5rem; border-radius: 20px; font-weight: 600; }
+        .pill.green { background: var(--green-glow); color: var(--green); }
+        .pill.blue { background: var(--accent-glow); color: var(--accent); }
+
+        /* phone frame */
+        .phone {
+            width: 245px; margin: 0 auto;
+            background: #05070f; border: 8px solid #1b2336; border-radius: 36px;
+            padding: 0; overflow: hidden; box-shadow: 0 30px 60px -20px rgba(0,0,0,0.7);
+            position: relative;
+        }
+        .phone::before { content: ''; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 70px; height: 5px; border-radius: 4px; background: #2a3550; z-index: 5; }
+        .phone-screen { padding: 1.6rem 1.1rem 1.4rem; background: linear-gradient(180deg, #0d1322 0%, #0a0e1a 100%); min-height: 420px; }
+        .phone-app { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 700; margin-bottom: 1.1rem; margin-top: 0.4rem; }
+        .phone-app .lg { width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(135deg, var(--accent), var(--purple)); }
+        .totp-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem; margin-bottom: 0.7rem; }
+        .totp-card .iss { font-size: 0.72rem; color: var(--text-muted); display:flex; justify-content: space-between; }
+        .totp-card .code { font-size: 1.6rem; font-weight: 800; letter-spacing: 0.12em; margin: 0.2rem 0 0.4rem; }
+        .totp-card .ring { display: flex; align-items: center; gap: 0.5rem; }
+        .totp-card .ring .track { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+        .totp-card .ring .track i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+        .totp-card .ring small { font-size: 0.65rem; color: var(--text-dim); }
+
+        /* bloom filter diagram */
+        .bloom { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 1.75rem; }
+        .bloom-pw { font-family: ui-monospace, Menlo, monospace; font-size: 0.85rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.85rem; display: flex; justify-content: space-between; align-items: center; }
+        .bloom-bits { display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px; margin: 1.25rem 0; }
+        .bloom-bits i { aspect-ratio: 1; border-radius: 3px; background: var(--bg); border: 1px solid var(--border); }
+        .bloom-bits i.hit { background: var(--red); border-color: var(--red); box-shadow: 0 0 10px rgba(239,68,68,0.5); }
+        .bloom-arrows { display: flex; justify-content: space-around; color: var(--text-dim); font-size: 0.7rem; margin-bottom: 0.4rem; }
+        .bloom-verdict { display: flex; align-items: center; gap: 0.6rem; padding: 0.7rem 0.9rem; border-radius: 8px; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); font-size: 0.82rem; color: #fca5a5; font-weight: 600; }
+        .bloom-stat { text-align: center; margin-top: 1rem; }
+        .bloom-stat b { font-size: 1.6rem; font-weight: 800; color: var(--text); display: block; }
+        .bloom-stat small { font-size: 0.72rem; color: var(--text-dim); }
+
+        /* LDAP sync diagram */
+        .ldap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 2rem 1.5rem; }
+        .ldap-src { text-align: center; background: var(--bg); border: 1px solid var(--accent); border-radius: 10px; padding: 0.85rem; width: 180px; margin: 0 auto 0.5rem; box-shadow: 0 0 25px var(--accent-glow); }
+        .ldap-src .t { font-weight: 700; font-size: 0.85rem; }
+        .ldap-src .s { font-size: 0.68rem; color: var(--text-dim); }
+        .ldap-fan { display: flex; justify-content: center; color: var(--accent); font-size: 1.3rem; }
+        .ldap-targets { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; margin-top: 0.5rem; }
+        .ldap-tgt { background: var(--bg); border: 1px solid var(--border); border-radius: 9px; padding: 0.7rem 0.8rem; display: flex; align-items: center; gap: 0.6rem; font-size: 0.78rem; }
+        .ldap-tgt .ico { font-size: 1.05rem; }
+        .ldap-tgt .st { margin-left: auto; font-size: 0.6rem; color: var(--green); display: flex; align-items: center; gap: 0.25rem; }
+        .ldap-tgt .st::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+
+        /* pipeline (architecture security) */
+        .pipeline {
+            display: flex; align-items: stretch; justify-content: center;
+            gap: 0; flex-wrap: nowrap; min-width: 760px; margin: 0 auto;
+        }
+        .pipe-node { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem 1rem; text-align: center; position: relative; }
+        .pipe-node .pi { font-size: 1.6rem; margin-bottom: 0.5rem; }
+        .pipe-node .pl { font-size: 0.85rem; font-weight: 700; }
+        .pipe-node .pd { font-size: 0.7rem; color: var(--text-dim); margin-top: 0.2rem; }
+        .pipe-link { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 0.6rem; min-width: 64px; }
+        .pipe-link .a { color: var(--accent); font-size: 1.3rem; line-height: 1; }
+        .pipe-link .lbl { font-size: 0.58rem; color: var(--text-dim); margin-top: 0.25rem; text-align: center; }
+
+        /* FEATURES (legacy grid reused for security) */
+        .feature-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; margin-bottom: 1.25rem; }
         .feature-icon.blue { background: var(--accent-glow); }
         .feature-icon.green { background: var(--green-glow); }
-        .feature-icon.orange { background: rgba(245, 158, 11, 0.15); }
-        .feature-icon.purple { background: rgba(139, 92, 246, 0.15); }
-        .feature-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.75rem; }
-        .feature-card p { font-size: 0.95rem; color: var(--text-muted); line-height: 1.7; }
+        .feature-icon.orange { background: var(--orange-glow); }
+        .feature-icon.purple { background: var(--purple-glow); }
 
         /* SECURITY */
-        .security-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1.25rem;
-        }
+        .security-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.25rem; margin-top: 3rem; }
         .security-item {
             display: flex; align-items: flex-start; gap: 1rem;
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 12px; padding: 1.5rem;
+            background: var(--bg); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem; transition: border-color 0.2s;
         }
+        .security-item:hover { border-color: var(--accent); }
         .security-check { color: var(--green); font-size: 1.25rem; flex-shrink: 0; margin-top: 0.15rem; }
         .security-item h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.25rem; }
         .security-item p { font-size: 0.85rem; color: var(--text-muted); }
 
         /* PRICING */
-        .pricing-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-            gap: 2rem; max-width: 800px; margin: 0 auto;
-        }
-        .pricing-card {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 16px; padding: 2.5rem;
-        }
-        .pricing-card.featured {
-            border-color: var(--accent);
-            box-shadow: 0 0 40px var(--accent-glow);
-        }
-        .pricing-tier {
-            font-size: 0.8rem; font-weight: 600; text-transform: uppercase;
-            letter-spacing: 0.1em; margin-bottom: 0.5rem;
-        }
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 2rem; max-width: 800px; margin: 0 auto; }
+        .pricing-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 2.5rem; }
+        .pricing-card.featured { border-color: var(--accent); box-shadow: 0 0 40px var(--accent-glow); }
+        .pricing-tier { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
         .pricing-tier.free { color: var(--green); }
         .pricing-tier.pro { color: var(--accent); }
         .pricing-price { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.25rem; }
         .pricing-period { font-size: 0.9rem; color: var(--text-dim); margin-bottom: 1.5rem; }
         .pricing-features { list-style: none; margin-bottom: 2rem; }
-        .pricing-features li {
-            padding: 0.5rem 0; font-size: 0.95rem; color: var(--text-muted);
-            display: flex; align-items: center; gap: 0.75rem;
-        }
+        .pricing-features li { padding: 0.5rem 0; font-size: 0.95rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.75rem; }
         .pricing-features li::before { content: '\2713'; color: var(--green); font-weight: 700; }
 
         /* CONTACT */
-        .contact-card {
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 16px; padding: 3rem;
-            max-width: 640px; margin: 0 auto;
-        }
+        .contact-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 3rem; max-width: 640px; margin: 0 auto; }
         .form-group { margin-bottom: 1.25rem; }
-        .form-group label {
-            display: block; font-size: 0.85rem; font-weight: 500;
-            margin-bottom: 0.5rem; color: var(--text-muted);
-        }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.5rem; color: var(--text-muted); }
         .form-group input, .form-group textarea, .form-group select {
             width: 100%; padding: 0.75rem 1rem;
             background: var(--bg); border: 1px solid var(--border);
             border-radius: 8px; color: var(--text); font-family: inherit;
             font-size: 0.95rem; transition: border-color 0.2s;
         }
-        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
-            outline: none; border-color: var(--accent);
-        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus { outline: none; border-color: var(--accent); }
         .form-group textarea { resize: vertical; min-height: 120px; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .form-submit { width: 100%; margin-top: 0.5rem; }
 
         /* FOOTER */
-        footer {
-            border-top: 1px solid var(--border);
-            padding: 3rem 2rem;
-        }
-        .footer-inner {
-            max-width: 1200px; margin: 0 auto;
-            display: flex; justify-content: space-between; align-items: center;
-            flex-wrap: wrap; gap: 1rem;
-        }
+        footer { border-top: 1px solid var(--border); padding: 3rem 2rem; }
+        .footer-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
         .footer-text { font-size: 0.85rem; color: var(--text-dim); }
         .footer-links { display: flex; gap: 1.5rem; }
         .footer-links a { color: var(--text-dim); text-decoration: none; font-size: 0.85rem; }
@@ -271,6 +451,12 @@
 
         /* MOBILE NAV */
         .nav-toggle { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; }
+        @media (max-width: 880px) {
+            .feature-row { grid-template-columns: 1fr; gap: 2rem; }
+            .feature-row.reversed .feature-copy { order: 1; }
+            .feature-row.reversed .feature-visual { order: 2; }
+            .feature-row + .feature-row { margin-top: 4.5rem; }
+        }
         @media (max-width: 768px) {
             .nav-links { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg); border-bottom: 1px solid var(--border); padding: 1rem 2rem; gap: 1rem; }
             .nav-links.open { display: flex; }
@@ -279,6 +465,7 @@
             .arch-diagram { padding: 1.5rem; }
             .form-row { grid-template-columns: 1fr; }
             .pricing-grid { grid-template-columns: 1fr; }
+            section { padding: 4.5rem 1.5rem; }
         }
     </style>
 </head>
@@ -287,7 +474,7 @@
 <nav>
     <div class="nav-inner">
         <a href="#" class="nav-logo">
-            <div class="logo-icon">AD</div>
+            <img class="logo-icon" src="brand/logo.png" alt="">
             ADPassSync
         </a>
         <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">&#9776;</button>
@@ -296,7 +483,8 @@
             <a href="#architecture">Architecture</a>
             <a href="#security">Security</a>
             <a href="#pricing">Pricing</a>
-            <a href="#contact" class="nav-cta">Contact Us</a>
+            <a href="/portal/">Sign in</a>
+            <a href="/portal/" class="nav-cta">Get Started Free</a>
         </div>
     </div>
 </nav>
@@ -304,150 +492,412 @@
 <!-- HERO -->
 <section class="hero">
     <div class="hero-badge">
-        <span>&#9679;</span> Identity Security Posture Management for Active Directory
+        <span>&#9679;</span> Self-service identity security for Active Directory
     </div>
     <h1>Self-Service Password Management<br>for <em>Active Directory</em></h1>
-    <p>Empower users with secure self-service password reset, enforce MFA across your domain, and detect breached credentials before attackers do.</p>
+    <p>Cut helpdesk tickets, enforce MFA across your domain, block breached credentials, and sync passwords everywhere they're needed — all on-premises, with zero plaintext leaving your network.</p>
     <div class="hero-buttons">
-        <a href="#contact" class="btn btn-primary">Get Started Free &#8594;</a>
-        <a href="#architecture" class="btn btn-secondary">How It Works</a>
+        <a href="/portal/" class="btn btn-primary">Get Started Free &#8594;</a>
+        <a href="#overview" class="btn btn-secondary">See How It Works</a>
+    </div>
+    <div class="hero-trust">
+        <span>Free for up to 50 users</span>
+        <span>No cloud dependency</span>
+        <span>Deploys in under an hour</span>
     </div>
 </section>
 
-<!-- FEATURES -->
-<section id="features">
+<!-- PRODUCT OVERVIEW -->
+<section id="overview">
     <div class="container">
         <div class="section-header center">
-            <div class="section-label">Features</div>
-            <h2 class="section-title">Everything you need to secure AD passwords</h2>
-            <p class="section-subtitle">ADPassSync intercepts password changes at the domain controller, enforces policy, and gives users a self-service reset portal with MFA.</p>
-        </div>
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon blue">&#128274;</div>
-                <h3>Self-Service Password Reset</h3>
-                <p>Users reset their own AD passwords through a secure web portal with multi-factor authentication. Reduces helpdesk tickets by up to 40% and eliminates the #1 IT support call.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon green">&#128737;</div>
-                <h3>Multi-Factor Authentication</h3>
-                <p>Enforce MFA on password resets with TOTP, WebAuthn/FIDO2, Email, SMS, or Duo Security. Users enroll through the self-service portal. No per-user licensing fees.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon orange">&#128680;</div>
-                <h3>Breached Password Detection</h3>
-                <p>Every password change is checked against a bloom filter of known compromised credentials. Block breached passwords in real-time before they enter your directory.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon purple">&#128220;</div>
-                <h3>Advanced Password Policy</h3>
-                <p>Go beyond AD's built-in policy with 10+ rule types: minimum length, complexity, dictionary words, keyboard patterns, character repetition, username inclusion, and more.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon blue">&#128260;</div>
-                <h3>LDAP Target Sync</h3>
-                <p>Automatically sync password changes to downstream LDAP directories, applications, and identity stores. Keep credentials consistent across your entire infrastructure.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon green">&#128187;</div>
-                <h3>Windows Logon Integration</h3>
-                <p>A Windows Credential Provider lets users initiate password resets directly from the logon screen — no browser needed, even when locked out of their workstation.</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- ARCHITECTURE -->
-<section id="architecture" style="background: var(--bg-card);">
-    <div class="container">
-        <div class="section-header center">
-            <div class="section-label">Architecture</div>
-            <h2 class="section-title">Built for enterprise Active Directory</h2>
-            <p class="section-subtitle">ADPassSync deploys across your AD infrastructure with a secure, distributed pipeline. No cloud dependency required.</p>
+            <div class="section-label">Overview</div>
+            <h2 class="section-title">One platform for the entire password lifecycle</h2>
+            <p class="section-subtitle">ADPassSync intercepts password changes right at the domain controller, enforces your policy, checks for breaches, and gives users a secure self-service reset portal with MFA — without ever sending credentials to the cloud.</p>
         </div>
         <div class="arch-diagram">
             <div class="arch-flow">
                 <div class="arch-node">
-                    <div class="node-icon">&#128187;</div>
-                    <div class="node-label">Password Filter DLL</div>
-                    <div class="node-detail">lsass.exe on each DC</div>
+                    <div class="node-icon">&#128100;</div>
+                    <div class="node-label">User</div>
+                    <div class="node-detail">Portal, phone, or logon screen</div>
                 </div>
                 <div class="arch-arrow">&#8594;</div>
                 <div class="arch-node">
-                    <div class="node-icon">&#9881;</div>
-                    <div class="node-label">Agent</div>
-                    <div class="node-detail">Named pipe + queue</div>
+                    <div class="node-icon">&#128272;</div>
+                    <div class="node-label">Policy &amp; MFA</div>
+                    <div class="node-detail">Verify &amp; enforce rules</div>
                 </div>
                 <div class="arch-arrow">&#8594;</div>
                 <div class="arch-node">
-                    <div class="node-icon">&#128259;</div>
-                    <div class="node-label">Relay</div>
-                    <div class="node-detail">Bridges air-gapped DCs</div>
+                    <div class="node-icon">&#127970;</div>
+                    <div class="node-label">Active Directory</div>
+                    <div class="node-detail">Password set on the DC</div>
                 </div>
                 <div class="arch-arrow">&#8594;</div>
                 <div class="arch-node">
-                    <div class="node-icon">&#127760;</div>
-                    <div class="node-label">Central Service</div>
-                    <div class="node-detail">DMZ / web portal</div>
+                    <div class="node-icon">&#128260;</div>
+                    <div class="node-label">LDAP Targets</div>
+                    <div class="node-detail">Downstream sync</div>
                 </div>
             </div>
             <div class="arch-note">
-                Passwords are envelope-encrypted on the DC (AES-256-GCM + RSA-OAEP). The relay never sees plaintext. All communication uses mTLS.
+                Every step is logged, encrypted, and runs entirely inside your network. AD password changes never break — even if ADPassSync is offline.
             </div>
         </div>
     </div>
 </section>
 
-<!-- SECURITY -->
-<section id="security">
+<!-- FEATURES -->
+<section id="features" style="background: var(--bg-card);">
     <div class="container">
         <div class="section-header center">
-            <div class="section-label">Security</div>
-            <h2 class="section-title">Security isn't a feature — it's the foundation</h2>
-            <p class="section-subtitle">Every design decision prioritizes the security of your credentials and your Active Directory environment.</p>
+            <div class="section-label">Features</div>
+            <h2 class="section-title">Everything you need to secure AD passwords</h2>
+            <p class="section-subtitle">Six capabilities, one lightweight deployment. Explore what each one does.</p>
         </div>
-        <div class="security-grid">
+
+        <!-- 1. Self-Service Password Reset -->
+        <div class="feature-row">
+            <div class="feature-copy">
+                <div class="feature-badge blue">&#128274;</div>
+                <div class="eyebrow">Self-Service Reset</div>
+                <h3>Users reset their own passwords — securely</h3>
+                <p>A clean, MFA-protected web portal lets users reset or unlock their Active Directory account in under a minute, from any device. The #1 helpdesk call disappears.</p>
+                <ul class="feature-list">
+                    <li><span class="check">&#10003;</span><span><strong>Cuts helpdesk tickets</strong> <span class="txt">— up to 40% of all calls are password-related.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>MFA-protected</strong> <span class="txt">— every reset requires a verified second factor.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Works from any browser</strong> <span class="txt">— no agent or VPN needed.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Windows logon integration</strong> <span class="txt">— reset directly from the lock screen.</span></span></li>
+                </ul>
+            </div>
+            <div class="feature-visual">
+                <div class="mock mock-glow">
+                    <div class="mock-bar">
+                        <span class="mock-dot r"></span><span class="mock-dot y"></span><span class="mock-dot g"></span>
+                        <span class="mock-url"><span class="lock">&#128274;</span> reset.acme.local/portal</span>
+                    </div>
+                    <div class="mock-body">
+                        <div class="mf-logo"><span class="lg"></span> ADPassSync</div>
+                        <div class="mf-steps">
+                            <div class="step done">&#10003; Identity</div>
+                            <div class="step done">&#10003; MFA</div>
+                            <div class="step active">New password</div>
+                        </div>
+                        <div class="mf-title">Set a new password</div>
+                        <div class="mf-sub">Signed in as <strong>jchen@acme.local</strong></div>
+                        <div class="mf-label">New password</div>
+                        <div class="mf-input focus"><span class="dots">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span><span class="eye">&#128065;</span></div>
+                        <div class="mf-meter"><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span></div>
+                        <div class="mf-rules">
+                            <div><span class="ok">&#10003;</span> At least 14 characters</div>
+                            <div><span class="ok">&#10003;</span> Upper, lower, number &amp; symbol</div>
+                            <div><span class="ok">&#10003;</span> Not found in any known breach</div>
+                        </div>
+                        <div class="mf-label">Confirm password</div>
+                        <div class="mf-input"><span class="dots">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</span></div>
+                        <div class="mf-btn">Update password &#8594;</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. MFA (reversed) -->
+        <div class="feature-row reversed">
+            <div class="feature-visual">
+                <div class="mock mock-glow">
+                    <div class="mock-bar">
+                        <span class="mock-dot r"></span><span class="mock-dot y"></span><span class="mock-dot g"></span>
+                        <span class="mock-url"><span class="lock">&#128274;</span> reset.acme.local/enroll</span>
+                    </div>
+                    <div class="mock-body" style="text-align:center;">
+                        <div class="mf-logo" style="justify-content:center;"><span class="lg"></span> ADPassSync</div>
+                        <div class="mf-title">Enroll authenticator app</div>
+                        <div class="mf-sub" style="margin-bottom:1rem;">Scan the QR code, then enter the 6-digit code.</div>
+                        <div class="qr" style="margin:0 auto 1rem;">
+                            <i></i><i></i><i></i><i class="off"></i><i></i><i class="off"></i><i class="off"></i><i></i><i></i><i></i><i></i>
+                            <i></i><i class="off"></i><i></i><i class="off"></i><i></i><i></i><i class="off"></i><i class="off"></i><i class="off"></i><i></i><i></i>
+                            <i></i><i class="off"></i><i></i><i class="off"></i><i class="off"></i><i></i><i></i><i class="off"></i><i></i><i class="off"></i><i></i>
+                            <i></i><i></i><i></i><i></i><i></i><i class="off"></i><i></i><i></i><i class="off"></i><i></i><i></i>
+                            <i class="off"></i><i class="off"></i><i class="off"></i><i></i><i class="off"></i><i></i><i class="off"></i><i class="off"></i><i></i><i class="off"></i><i></i>
+                            <i></i><i class="off"></i><i></i><i class="off"></i><i></i><i class="off"></i><i></i><i></i><i class="off"></i><i></i><i class="off"></i>
+                            <i></i><i></i><i class="off"></i><i></i><i></i><i></i><i class="off"></i><i class="off"></i><i></i><i class="off"></i><i></i>
+                            <i></i><i class="off"></i><i></i><i class="off"></i><i class="off"></i><i></i><i></i><i></i><i></i><i></i><i class="off"></i>
+                            <i></i><i></i><i></i><i></i><i></i><i class="off"></i><i></i><i class="off"></i><i></i><i class="off"></i><i></i>
+                            <i class="off"></i><i class="off"></i><i></i><i class="off"></i><i></i><i></i><i></i><i class="off"></i><i></i><i></i><i class="off"></i>
+                            <i></i><i></i><i></i><i class="off"></i><i></i><i class="off"></i><i></i><i></i><i class="off"></i><i></i><i></i>
+                        </div>
+                        <div class="otp-row">
+                            <div class="box fill">4</div><div class="box fill">8</div><div class="box fill">2</div>
+                            <div class="box fill">9</div><div class="box cursor">1</div><div class="box"></div>
+                        </div>
+                        <div class="mf-btn">Verify &amp; enable MFA</div>
+                    </div>
+                </div>
+            </div>
+            <div class="feature-copy">
+                <div class="feature-badge green">&#128737;</div>
+                <div class="eyebrow">Multi-Factor Authentication</div>
+                <h3>MFA on every reset — without per-user fees</h3>
+                <p>Users enroll a second factor through the same self-service portal. Choose the providers that fit your environment and enforce them on every password operation.</p>
+                <ul class="feature-list">
+                    <li><span class="check">&#10003;</span><span><strong>TOTP authenticator apps</strong> <span class="txt">— Google Authenticator, Authy, or the ADPassSync app.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>WebAuthn / FIDO2</strong> <span class="txt">— hardware keys &amp; platform biometrics.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Email, SMS &amp; Duo Security</strong> <span class="txt">— meet users where they are.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>No per-user licensing</strong> <span class="txt">— MFA is included for every account.</span></span></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 3. Password Policy Engine -->
+        <div class="feature-row">
+            <div class="feature-copy">
+                <div class="feature-badge purple">&#128220;</div>
+                <div class="eyebrow">Password Policy Engine</div>
+                <h3>Go far beyond AD's built-in policy</h3>
+                <p>Active Directory's native policy stops at length and complexity. ADPassSync adds 10+ configurable rule types so you can block weak, predictable, and guessable passwords before they're ever set.</p>
+                <ul class="feature-list">
+                    <li><span class="check">&#10003;</span><span><strong>10+ rule types</strong> <span class="txt">— length, complexity, dictionary, keyboard patterns, repetition.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Block context terms</strong> <span class="txt">— username, company name, and custom blocklists.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Live feedback</strong> <span class="txt">— users see exactly which rule failed and why.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Per-OU policies</strong> <span class="txt">— stricter rules for admins and privileged groups.</span></span></li>
+                </ul>
+            </div>
+            <div class="feature-visual">
+                <div class="mock mock-glow">
+                    <div class="mock-bar">
+                        <span class="mock-dot r"></span><span class="mock-dot y"></span><span class="mock-dot g"></span>
+                        <span class="mock-url"><span class="lock">&#128274;</span> admin.acme.local/policy</span>
+                    </div>
+                    <div class="mock-body" style="padding:0.5rem 0.5rem 1rem;">
+                        <div style="padding:0.85rem 1rem 0.4rem; font-weight:700; font-size:0.9rem;">Password Policy &mdash; Default</div>
+                        <div class="pol-row"><span class="ico">&#128207;</span><span class="nm">Minimum length<small>Reject passwords shorter than the limit</small></span><span class="val">14 chars</span><span class="toggle"></span></div>
+                        <div class="pol-row"><span class="ico">&#128290;</span><span class="nm">Character complexity<small>Upper, lower, number &amp; symbol</small></span><span class="val">3 of 4</span><span class="toggle"></span></div>
+                        <div class="pol-row"><span class="ico">&#128214;</span><span class="nm">Dictionary words<small>Block common dictionary terms</small></span><span class="val">On</span><span class="toggle"></span></div>
+                        <div class="pol-row"><span class="ico">&#9000;</span><span class="nm">Keyboard patterns<small>qwerty, asdf, 12345&hellip;</small></span><span class="val">On</span><span class="toggle"></span></div>
+                        <div class="pol-row"><span class="ico">&#128257;</span><span class="nm">Character repetition<small>Limit repeated/sequential runs</small></span><span class="val">Max 3</span><span class="toggle"></span></div>
+                        <div class="pol-row"><span class="ico">&#128100;</span><span class="nm">Username inclusion<small>Reject passwords containing the username</small></span><span class="val">On</span><span class="toggle"></span></div>
+                        <div class="pol-row"><span class="ico">&#128203;</span><span class="nm">Custom blocklist<small>Company names &amp; seasonal terms</small></span><span class="val">42 terms</span><span class="toggle off"></span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Breached Password Detection (reversed) -->
+        <div class="feature-row reversed">
+            <div class="feature-visual">
+                <div class="bloom">
+                    <div class="bloom-pw"><span>Candidate: <strong style="color:var(--text)">Summer2024!</strong></span><span style="color:var(--text-dim)">hashing&hellip;</span></div>
+                    <div class="bloom-arrows"><span>k1 &#8595;</span><span>k2 &#8595;</span><span>k3 &#8595;</span></div>
+                    <div class="bloom-bits">
+                        <i></i><i></i><i class="hit"></i><i></i><i></i><i></i><i></i><i class="hit"></i><i></i><i></i><i></i><i></i><i class="hit"></i><i></i><i></i><i></i>
+                        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                    </div>
+                    <div class="bloom-verdict"><span>&#9888;</span> Match found &mdash; password seen in known breaches. Rejected.</div>
+                    <div class="bloom-stat"><b>900M+</b><small>compromised passwords checked in-memory, in microseconds</small></div>
+                </div>
+            </div>
+            <div class="feature-copy">
+                <div class="feature-badge red">&#128680;</div>
+                <div class="eyebrow">Breached Password Detection</div>
+                <h3>Stop compromised passwords at the door</h3>
+                <p>Every new password is checked against a bloom filter of over 900 million credentials exposed in public breaches — in real time, entirely offline. No password or hash ever leaves your network.</p>
+                <ul class="feature-list">
+                    <li><span class="check">&#10003;</span><span><strong>900M+ known-compromised passwords</strong> <span class="txt">— sourced from public breach corpora.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Real-time blocking</strong> <span class="txt">— rejected before the change reaches AD.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Fully offline</strong> <span class="txt">— in-memory bloom filter, no external API calls.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Regularly refreshed</strong> <span class="txt">— update the dataset as new breaches surface.</span></span></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 5. LDAP Sync -->
+        <div class="feature-row">
+            <div class="feature-copy">
+                <div class="feature-badge blue">&#128260;</div>
+                <div class="eyebrow">LDAP Target Sync</div>
+                <h3>One password, consistent everywhere</h3>
+                <p>When a user changes their AD password, ADPassSync can push that change to downstream LDAP directories and applications — keeping every system in sync without forcing users to juggle multiple credentials.</p>
+                <ul class="feature-list">
+                    <li><span class="check">&#10003;</span><span><strong>Sync to multiple targets</strong> <span class="txt">— OpenLDAP, FreeIPA, app directories &amp; more.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Per-target mapping</strong> <span class="txt">— control which users and attributes sync where.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Encrypted in transit</strong> <span class="txt">— LDAPS / StartTLS to every endpoint.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Retry &amp; audit</strong> <span class="txt">— queued delivery with full success/failure logging.</span></span></li>
+                </ul>
+            </div>
+            <div class="feature-visual">
+                <div class="ldap">
+                    <div class="ldap-src">
+                        <div class="t">&#127970; Active Directory</div>
+                        <div class="s">Password change detected</div>
+                    </div>
+                    <div class="ldap-fan">&#11167;</div>
+                    <div class="ldap-targets">
+                        <div class="ldap-tgt"><span class="ico">&#128193;</span> OpenLDAP <span class="st">synced</span></div>
+                        <div class="ldap-tgt"><span class="ico">&#128737;</span> FreeIPA <span class="st">synced</span></div>
+                        <div class="ldap-tgt"><span class="ico">&#9881;</span> GitLab <span class="st">synced</span></div>
+                        <div class="ldap-tgt"><span class="ico">&#128202;</span> Jira <span class="st">synced</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ARCHITECTURE & SECURITY -->
+<section id="architecture">
+    <div class="container">
+        <div class="section-header center">
+            <div class="section-label">Architecture &amp; Security</div>
+            <h2 class="section-title">Security isn't a feature — it's the foundation</h2>
+            <p class="section-subtitle">ADPassSync deploys as a distributed pipeline across your AD infrastructure. Passwords are envelope-encrypted at the domain controller and never appear in plaintext anywhere downstream.</p>
+        </div>
+        <div class="arch-diagram">
+            <div class="pipeline">
+                <div class="pipe-node">
+                    <div class="pi">&#128451;</div>
+                    <div class="pl">Password Filter DLL</div>
+                    <div class="pd">lsass.exe on each DC</div>
+                </div>
+                <div class="pipe-link"><span class="a">&#8594;</span><span class="lbl">named pipe</span></div>
+                <div class="pipe-node">
+                    <div class="pi">&#9881;</div>
+                    <div class="pl">Agent</div>
+                    <div class="pd">Encrypt &amp; queue</div>
+                </div>
+                <div class="pipe-link"><span class="a">&#8594;</span><span class="lbl">mTLS</span></div>
+                <div class="pipe-node">
+                    <div class="pi">&#128259;</div>
+                    <div class="pl">Relay</div>
+                    <div class="pd">Bridges air-gapped DCs</div>
+                </div>
+                <div class="pipe-link"><span class="a">&#8594;</span><span class="lbl">mTLS</span></div>
+                <div class="pipe-node">
+                    <div class="pi">&#127760;</div>
+                    <div class="pl">Central Service</div>
+                    <div class="pd">DMZ / web portal</div>
+                </div>
+            </div>
+            <div class="arch-note">
+                Passwords are envelope-encrypted on the DC (AES-256-GCM + RSA-OAEP). The relay only ever forwards encrypted blobs — it never holds a key.
+            </div>
+        </div>
+        <div id="security" class="security-grid">
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
-                <div>
-                    <h4>Envelope Encryption</h4>
-                    <p>AES-256-GCM + RSA-OAEP. Credentials are encrypted on the DC and only decrypted by the central service.</p>
-                </div>
+                <div><h4>Envelope Encryption</h4><p>AES-256-GCM + RSA-OAEP. Credentials are encrypted on the DC and only decrypted by the central service.</p></div>
             </div>
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
-                <div>
-                    <h4>Mutual TLS</h4>
-                    <p>All component-to-component communication uses mutual TLS with certificate pinning.</p>
-                </div>
+                <div><h4>Mutual TLS</h4><p>All component-to-component communication uses mutual TLS with certificate pinning.</p></div>
             </div>
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
-                <div>
-                    <h4>Zero Plaintext in Transit</h4>
-                    <p>The relay forwards encrypted blobs. No intermediate component ever sees the password.</p>
-                </div>
+                <div><h4>Zero Plaintext</h4><p>The relay forwards encrypted blobs. No intermediate component ever sees the password.</p></div>
             </div>
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
-                <div>
-                    <h4>Fail-Safe Design</h4>
-                    <p>If any ADPassSync component fails, AD password changes continue unaffected. We never break Active Directory.</p>
-                </div>
+                <div><h4>Fail-Safe Design</h4><p>If any ADPassSync component fails, AD password changes continue unaffected. We never break Active Directory.</p></div>
             </div>
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
-                <div>
-                    <h4>On-Premises Deployment</h4>
-                    <p>Everything runs in your environment. No credentials leave your network. No cloud dependency.</p>
-                </div>
+                <div><h4>On-Premises</h4><p>Everything runs in your environment. No credentials leave your network. No cloud dependency.</p></div>
             </div>
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
-                <div>
-                    <h4>Audit Logging</h4>
-                    <p>Every password event, MFA verification, and policy decision is logged for compliance and forensics.</p>
+                <div><h4>Audit Logging</h4><p>Every password event, MFA verification, and policy decision is logged for compliance and forensics.</p></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ADMIN CONSOLE -->
+<section style="background: var(--bg-card);">
+    <div class="container">
+        <div class="feature-row">
+            <div class="feature-visual">
+                <div class="mock mock-glow">
+                    <div class="mock-bar">
+                        <span class="mock-dot r"></span><span class="mock-dot y"></span><span class="mock-dot g"></span>
+                        <span class="mock-url"><span class="lock">&#128274;</span> admin.acme.local/dashboard</span>
+                    </div>
+                    <div class="mock-body">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.9rem;">
+                            <div style="font-weight:700;font-size:0.95rem;">Dashboard</div>
+                            <span class="pill blue">Licensed: 1,000 users</span>
+                        </div>
+                        <div class="dash-stats">
+                            <div class="dash-stat"><div class="k">Resets (30d)</div><div class="v">1,284</div><div class="d up">&#9650; 12% vs last month</div></div>
+                            <div class="dash-stat"><div class="k">MFA enrolled</div><div class="v">94%</div><div class="d up">&#9650; 6% vs last month</div></div>
+                            <div class="dash-stat"><div class="k">Breaches blocked</div><div class="v">37</div><div class="d dn">this month</div></div>
+                            <div class="dash-stat"><div class="k">Active users</div><div class="v">842</div><div class="d up">of 1,000 licensed</div></div>
+                        </div>
+                        <div class="dash-bars">
+                            <i style="height:40%"></i><i style="height:55%"></i><i style="height:48%"></i><i style="height:70%"></i><i style="height:62%"></i><i style="height:85%"></i><i style="height:75%"></i><i style="height:92%"></i><i style="height:68%"></i><i style="height:100%"></i><i style="height:80%"></i><i style="height:88%"></i>
+                        </div>
+                        <div class="dash-table">
+                            <div class="dash-tr"><span class="dash-av">JC</span><span class="who">Jane Chen<small>jchen@acme.local</small></span><span class="pill green">Reset &middot; 2m ago</span></div>
+                            <div class="dash-tr"><span class="dash-av">MO</span><span class="who">Marc Ortiz<small>mortiz@acme.local</small></span><span class="pill blue">MFA enrolled</span></div>
+                            <div class="dash-tr"><span class="dash-av">SK</span><span class="who">Sara Kane<small>skane@acme.local</small></span><span class="pill green">Reset &middot; 14m ago</span></div>
+                        </div>
+                    </div>
                 </div>
+            </div>
+            <div class="feature-copy">
+                <div class="feature-badge orange">&#128202;</div>
+                <div class="eyebrow">Admin Console</div>
+                <h3>Full visibility and control in one place</h3>
+                <p>A web-based admin console gives IT a real-time view of reset activity, MFA enrollment, blocked breaches, and license usage — plus the tools to manage users and policy across the domain.</p>
+                <ul class="feature-list">
+                    <li><span class="check">&#10003;</span><span><strong>License management</strong> <span class="txt">— track seats and deploy license files via AD.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Complete audit trail</strong> <span class="txt">— every reset, MFA event &amp; policy decision, searchable.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>User management</strong> <span class="txt">— unlock accounts, reset MFA, and review per-user history.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>At-a-glance metrics</strong> <span class="txt">— resets, enrollment rate &amp; breaches blocked.</span></span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- MOBILE APP -->
+<section>
+    <div class="container">
+        <div class="feature-row reversed">
+            <div class="feature-visual">
+                <div class="phone">
+                    <div class="phone-screen">
+                        <div class="phone-app"><span class="lg"></span> ADPassSync</div>
+                        <div style="font-size:0.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:0.6rem;">Authenticator</div>
+                        <div class="totp-card">
+                            <div class="iss"><span>Acme Corp (AD)</span><span>&#9203;</span></div>
+                            <div class="code">482&nbsp;913</div>
+                            <div class="ring"><div class="track"><i style="width:38%"></i></div><small>11s</small></div>
+                        </div>
+                        <div class="totp-card">
+                            <div class="iss"><span>VPN Gateway</span><span>&#9203;</span></div>
+                            <div class="code">205&nbsp;774</div>
+                            <div class="ring"><div class="track"><i style="width:72%"></i></div><small>21s</small></div>
+                        </div>
+                        <div class="totp-card">
+                            <div class="iss"><span>GitLab</span><span>&#9203;</span></div>
+                            <div class="code">639&nbsp;018</div>
+                            <div class="ring"><div class="track"><i style="width:55%"></i></div><small>16s</small></div>
+                        </div>
+                        <div class="mf-btn" style="margin-top:1rem;">&#128247; Scan QR code</div>
+                    </div>
+                </div>
+            </div>
+            <div class="feature-copy">
+                <div class="feature-badge green">&#128241;</div>
+                <div class="eyebrow">Mobile App</div>
+                <h3>A second factor in every user's pocket</h3>
+                <p>The ADPassSync mobile app doubles as a TOTP authenticator and a self-service reset tool — so users can secure their account and recover access without ever calling the helpdesk.</p>
+                <ul class="feature-list">
+                    <li><span class="check">&#10003;</span><span><strong>Built-in TOTP authenticator</strong> <span class="txt">— rolling 6-digit codes for AD and beyond.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Reset from your phone</strong> <span class="txt">— change your AD password on the go.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>QR-code enrollment</strong> <span class="txt">— scan to add a new account in seconds.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>Push-ready</strong> <span class="txt">— approve sign-ins with a single tap.</span></span></li>
+                </ul>
             </div>
         </div>
     </div>
@@ -474,11 +924,11 @@
                     <li>LDAP sync</li>
                     <li>Windows logon integration</li>
                 </ul>
-                <a href="#contact" class="btn btn-secondary" style="width:100%; justify-content:center;">Download Free</a>
+                <a href="/portal/" class="btn btn-secondary" style="width:100%; justify-content:center;">Sign up &amp; download</a>
             </div>
             <div class="pricing-card featured">
                 <div class="pricing-tier pro">Professional</div>
-                <div class="pricing-price">$5<span style="font-size:1rem;font-weight:500;color:var(--text-muted)">/user/year</span></div>
+                <div class="pricing-price">$1<span style="font-size:1rem;font-weight:500;color:var(--text-muted)">/user/year</span></div>
                 <div class="pricing-period">For each user beyond 50, billed annually</div>
                 <ul class="pricing-features">
                     <li>Everything in Free</li>
@@ -506,7 +956,7 @@
             <form id="contactForm" action="https://formsubmit.co/pidclawbot@gmail.com" method="POST">
                 <input type="hidden" name="_subject" value="ADPassSync Website Inquiry">
                 <input type="hidden" name="_captcha" value="false">
-                <input type="hidden" name="_next" value="https://adpasssync.com/#contact">
+                <input type="hidden" name="_next" value="https://adpasssync.pages.dev/#contact">
                 <input type="text" name="_honey" style="display:none">
                 <div class="form-row">
                     <div class="form-group">
@@ -564,6 +1014,7 @@
             <a href="#architecture">Architecture</a>
             <a href="#pricing">Pricing</a>
             <a href="#contact">Contact</a>
+            <a href="/legal/eula.html">EULA</a>
         </div>
     </div>
 </footer>
