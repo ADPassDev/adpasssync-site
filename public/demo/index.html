@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Try ADPassSync Live — Interactive Demo</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/demo.css">
+</head>
+<body class="theme-light">
+  <div class="demo-ribbon">
+    <span><span class="dot">&#9679;</span> <strong>Sandbox</strong> — nothing here touches a real directory; all data is fake</span>
+    <span class="sep">|</span>
+    <span>Resets automatically &middot; <a href="#" id="reset-sandbox">Reset now</a></span>
+    <span class="sep">|</span>
+    <a href="/">&larr; Back to adpasssync.com</a>
+  </div>
+
+  <div class="ss-shell">
+    <div class="ss-card">
+      <div class="ss-brand"><img src="/brand/logo.png" alt=""></div>
+      <div class="ss-title">Try ADPassSync Live</div>
+      <p class="ss-sub">
+        A fully interactive walkthrough of the three surfaces your users and IT team touch —
+        on a fake <span class="mono">acme.local</span> domain. Pick where to start.
+      </p>
+
+      <div class="ss-msg info" id="suggest">
+        <strong>Suggested first step:</strong> <span id="suggest-text">…</span>
+      </div>
+
+      <div class="ss-tiles">
+        <a class="ss-tile" href="reset.html">
+          <div class="ico">&#128272;</div>
+          <h3>Self-Service Portal</h3>
+          <p>Reset a password or unlock an account the way an end user would — with MFA.</p>
+        </a>
+        <a class="ss-tile" href="admin.html">
+          <div class="ico">&#128202;</div>
+          <h3>Admin Console</h3>
+          <p>See live reset activity, MFA enrollment and blocked breaches across the domain.</p>
+        </a>
+        <a class="ss-tile" href="helpdesk.html">
+          <div class="ico">&#127911;</div>
+          <h3>Helpdesk</h3>
+          <p>Look up a user and reset, unlock, or re-enroll them on their behalf.</p>
+        </a>
+      </div>
+
+      <div class="prefill-note" style="margin-top:1.75rem; background:#f8fafc; border-color:#cbd5e1; color:#475569;">
+        <strong>Demo logins</strong> (pre-filled for you on the Admin &amp; Helpdesk sign-in screens):<br>
+        Admin &nbsp;— <span class="mono" id="cred-admin"></span><br>
+        Helpdesk — <span class="mono" id="cred-help"></span>
+      </div>
+
+      <p class="ss-foot">Everything you do here is local to your browser and disappears when the sandbox resets.</p>
+    </div>
+  </div>
+
+  <script src="js/demo-state.js"></script>
+  <script>
+    (function () {
+      'use strict';
+      var state = Demo.load();
+      var sug = Demo.getUser(state, Demo.SUGGESTED);
+      var txt = document.getElementById('suggest-text');
+      if (sug) {
+        txt.innerHTML =
+          'Open the <strong>Self-Service Portal</strong> and reset <strong>' + sug.name +
+          '</strong> (<span class="mono">' + sug.email + '</span>) — her account is currently <strong>locked</strong>. ' +
+          'Then open the <strong>Admin Console</strong> to watch the reset appear in the activity feed.';
+      }
+      document.getElementById('cred-admin').textContent = Demo.CREDS.admin.user + '  /  ' + Demo.CREDS.admin.pass;
+      document.getElementById('cred-help').textContent = Demo.CREDS.helpdesk.user + '  /  ' + Demo.CREDS.helpdesk.pass;
+
+      document.getElementById('reset-sandbox').addEventListener('click', function (e) {
+        e.preventDefault();
+        Demo.reset();
+        location.reload();
+      });
+    })();
+  </script>
+</body>
+</html>

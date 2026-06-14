@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Self-Service Portal — ADPassSync Demo</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/demo.css">
+</head>
+<body class="theme-light">
+  <div class="demo-ribbon">
+    <span><span class="dot">&#9679;</span> <strong>Sandbox</strong> — Self-Service Portal demo</span>
+    <span class="sep">|</span>
+    <a href="index.html">&larr; Demo home</a>
+    <span class="sep">|</span>
+    <a href="admin.html">Admin Console &rarr;</a>
+  </div>
+
+  <div class="ss-shell">
+    <div class="ss-card">
+      <div class="ss-brand"><img src="/brand/logo.png" alt=""></div>
+      <div class="ss-title">ADPassSync</div>
+      <p class="ss-sub">Self-Service Portal</p>
+
+      <div class="ss-tabs" id="tabs">
+        <button class="ss-tab active" data-view="home">Home</button>
+        <button class="ss-tab" data-view="reset">Reset Password</button>
+        <button class="ss-tab" data-view="change">Change Password</button>
+        <button class="ss-tab" data-view="unlock">Unlock Account</button>
+        <button class="ss-tab" data-view="mfa">Enroll MFA</button>
+      </div>
+
+      <div id="view"></div>
+
+      <p class="ss-foot">Contact your IT help desk if you need assistance.</p>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/demo-state.js"></script>
+  <script src="js/demo-reset.js"></script>
+</body>
+</html>
