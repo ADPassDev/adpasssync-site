@@ -450,7 +450,7 @@
         .footer-links a:hover { color: var(--text-muted); }
 
         /* MOBILE NAV */
-        .nav-toggle { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; }
+        .nav-toggle { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; padding: 0.5rem; z-index: 101; -webkit-tap-highlight-color: transparent; }
         @media (max-width: 880px) {
             .feature-row { grid-template-columns: 1fr; gap: 2rem; }
             .feature-row.reversed .feature-copy { order: 1; }
@@ -458,8 +458,8 @@
             .feature-row + .feature-row { margin-top: 4.5rem; }
         }
         @media (max-width: 768px) {
-            .nav-links { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: var(--bg); border-bottom: 1px solid var(--border); padding: 1rem 2rem; gap: 1rem; }
-            .nav-links.open { display: flex; }
+            .nav-links { display: none !important; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: rgba(10, 14, 26, 0.98); border-bottom: 1px solid var(--border); padding: 1rem 2rem; gap: 1rem; z-index: 100; }
+            .nav-links.open { display: flex !important; }
             .nav-toggle { display: block; }
             .hero { padding: 8rem 1.5rem 4rem; }
             .arch-diagram { padding: 1.5rem; }
@@ -477,7 +477,7 @@
             <img class="logo-icon" src="brand/logo.png" alt="">
             ADPassSync
         </a>
-        <button class="nav-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" aria-label="Toggle navigation">&#9776;</button>
+        <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation">&#9776;</button>
         <div class="nav-links">
             <a href="#features">Features</a>
             <a href="#architecture">Architecture</a>
@@ -1024,5 +1024,28 @@
     </div>
 </footer>
 
+<script>
+(function(){
+  var toggle = document.getElementById('navToggle');
+  var links = document.querySelector('.nav-links');
+  if (!toggle || !links) return;
+  toggle.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    links.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', links.classList.contains('open'));
+  });
+  // Close menu when a nav link is tapped
+  links.querySelectorAll('a').forEach(function(a) {
+    a.addEventListener('click', function() { links.classList.remove('open'); });
+  });
+  // Close menu when tapping outside
+  document.addEventListener('click', function(e) {
+    if (!links.contains(e.target) && e.target !== toggle) {
+      links.classList.remove('open');
+    }
+  });
+})();
+</script>
 </body>
 </html>
