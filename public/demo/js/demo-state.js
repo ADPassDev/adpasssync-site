@@ -23,16 +23,6 @@
   // The user the landing page nudges visitors to try first.
   const SUGGESTED = 'jchen';
 
-  // A tiny stand-in for the breached-password corpus. The real product checks
-  // 2B+ HIBP hashes; here we just flag a handful of obvious ones plus anything
-  // that looks like "Password..." / "Welcome..." so the breach check visibly
-  // fires during the demo.
-  const BREACHED = new Set([
-    'password', 'password1', 'password123', 'p@ssw0rd', 'qwerty',
-    'letmein', 'welcome', 'welcome1', 'admin', 'changeme', 'abc123',
-    'iloveyou', 'monkey', 'dragon', 'sunshine', 'summer2025', 'acme123',
-  ]);
-
   function seedUsers() {
     // ts offsets (minutes ago) keep the activity feed looking lived-in.
     return [
@@ -191,11 +181,12 @@
     return state;
   }
 
-  // Password policy mirrors the product's defaults: length + character classes
-  // + a breach check. Returns rule results, a 0-4 strength score, and the
-  // number of breaches the password appears in. `knownBreachCount` lets the
-  // caller fold in an authoritative hit from the live corpus (see breachLookup).
-  function checkPassword(pw, knownBreachCount) {
+  // Password policy mirrors the product's local-policy rules: length + character
+  // classes. The breached-password corpus check runs only in the installed
+  // product (offline, against a local 2B+ hash database) and is intentionally
+  // NOT performed in this online demo, so it isn't part of these results.
+  // Returns rule results, a 0-4 strength score, and whether all rules pass.
+  function checkPassword(pw) {
     pw = pw || '';
     const rules = [
       { label: 'At least 12 characters', ok: pw.length >= 12 },
@@ -203,73 +194,14 @@
       { label: 'At least one number', ok: /[0-9]/.test(pw) },
       { label: 'At least one symbol', ok: /[^A-Za-z0-9]/.test(pw) },
     ];
-    const breachCount = Math.max(breachHits(pw), knownBreachCount || 0);
-    rules.push({ label: 'Not found in any known breach', ok: pw.length > 0 && breachCount === 0 });
 
     const met = rules.filter((r) => r.ok).length;
-    const score = Math.max(0, Math.min(4, met - 1)); // 0..4
+    const score = Math.max(0, Math.min(4, met)); // 0..4
     return {
       rules,
       score,
-      breachCount,
       ok: rules.every((r) => r.ok),
     };
-  }
-
-  // Instant, fully-offline pre-check against a tiny built-in list so the most
-  // obvious passwords fire before any network round-trip.
-  function breachHits(pw) {
-    const lower = pw.toLowerCase();
-    if (BREACHED.has(lower)) return 1 + (lower.charCodeAt(0) % 9) * 137; // pseudo "found in N breaches"
-    if (/^(password|welcome|admin|acme|qwerty)/i.test(pw) && pw.length < 14) return 3;
-    return 0;
-  }
-
-  function sha1Hex(str) {
-    return crypto.subtle
-      .digest('SHA-1', new TextEncoder().encode(str))
-      .then((buf) =>
-        Array.from(new Uint8Array(buf))
-          .map((b) => b.toString(16).padStart(2, '0'))
-          .join('')
-      );
-  }
-
-  // Authoritative breach check against Have I Been Pwned's Pwned Passwords
-  // corpus (~900M+ real leaked passwords) using its k-anonymity range API:
-  // we SHA-1 the password and send only the first 5 hex chars of the hash.
-  // The password and its full hash never leave the browser. Resolves to the
-  // number of times the password appears in known breaches, or null if the
-  // corpus can't be reached (caller then falls back to the offline pre-check).
-  function breachLookup(pw) {
-    pw = pw || '';
-    if (!pw) return Promise.resolve(0);
-    const local = breachHits(pw);
-    if (local) return Promise.resolve(local);
-    if (!(window.crypto && crypto.subtle && window.fetch)) return Promise.resolve(null);
-    return sha1Hex(pw)
-      .then((hash) => {
-        const upper = hash.toUpperCase();
-        const prefix = upper.slice(0, 5);
-        const suffix = upper.slice(5);
-        return fetch('https://api.pwnedpasswords.com/range/' + prefix, {
-          headers: { 'Add-Padding': 'true' },
-        }).then((resp) => {
-          if (!resp.ok) return null;
-          return resp.text().then((text) => {
-            const lines = text.split('\n');
-            for (let i = 0; i < lines.length; i++) {
-              const parts = lines[i].split(':');
-              if (parts[0] && parts[0].trim().toUpperCase() === suffix) {
-                const n = parseInt(parts[1], 10);
-                return n > 0 ? n : 0; // padded decoys report a count of 0
-              }
-            }
-            return 0;
-          });
-        });
-      })
-      .catch(() => null);
   }
 
   function generateOtp(seed) {
@@ -307,7 +239,6 @@
     enrollMfa,
     recordBreachBlock,
     checkPassword,
-    breachLookup,
     generateOtp,
     fmtAgo,
   };
