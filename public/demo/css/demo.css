@@ -118,11 +118,6 @@ body {
 .policy li.ok .mark { color: var(--green); }
 .policy li.bad .mark { color: #cbd5e1; }
 
-.breach-warn {
-  margin-top: 0.75rem; padding: 0.7rem 0.85rem; border-radius: 9px;
-  background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 0.85rem;
-}
-
 .ss-note {
   margin-top: 0.75rem; font-size: 0.75rem; line-height: 1.45; color: #94a3b8;
 }
