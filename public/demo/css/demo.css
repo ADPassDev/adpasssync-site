@@ -123,6 +123,10 @@ body {
   background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; font-size: 0.85rem;
 }
 
+.ss-note {
+  margin-top: 0.75rem; font-size: 0.75rem; line-height: 1.45; color: #94a3b8;
+}
+
 .otp-box {
   text-align: center; background: #f8fafc; border: 1px dashed #cbd5e1;
   border-radius: 12px; padding: 1.1rem; margin-bottom: 1.25rem;

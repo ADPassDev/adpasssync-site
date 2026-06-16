@@ -204,6 +204,9 @@
         '<div class="pw-label" id="pw-label">Enter a password</div>' +
         '<div id="breach"></div>' +
         '<ul class="policy" id="policy"></ul>' +
+        '<p class="ss-note">This demo checks passwords against the live Have I Been Pwned corpus ' +
+          'using its k-anonymity range API — only a 5-character hash prefix is sent, never your ' +
+          'password. The product itself runs this check against a fully offline local copy.</p>' +
       '</div>' +
       '<div class="ss-field"><label>Confirm new password</label>' +
         '<input class="ss-input" id="pw2" type="password"></div>';
@@ -220,11 +223,16 @@
     var breach = document.getElementById('breach');
     var policy = document.getElementById('policy');
     var LABELS = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong'];
+    // Cache of corpus hits keyed by password value, plus a request token so a
+    // slow lookup for an old keystroke can't clobber a newer one.
+    var breachCache = Object.create(null);
+    var breachReqId = 0;
 
     function refresh() {
-      var res = Demo.checkPassword(pw.value);
+      var val = pw.value;
+      var res = Demo.checkPassword(val, breachCache[val]);
       meter.className = 'pw-meter s' + res.score;
-      label.textContent = pw.value ? LABELS[res.score] : 'Enter a password';
+      label.textContent = val ? LABELS[res.score] : 'Enter a password';
       policy.innerHTML = res.rules.map(function (r) {
         return '<li class="' + (r.ok ? 'ok' : 'bad') + '"><span class="mark">' +
           (r.ok ? '&#10003;' : '&#9675;') + '</span>' + r.label + '</li>';
@@ -233,8 +241,19 @@
         ? '<div class="breach-warn">&#9888; This password was found in <strong>' +
             res.breachCount.toLocaleString() + '</strong> known breaches and is blocked.</div>'
         : '';
-      var match = pw.value.length > 0 && pw.value === pw2.value;
+      var match = val.length > 0 && val === pw2.value;
       submit.disabled = !(res.ok && match);
+
+      // Authoritative check against the live breach corpus (HIBP k-anonymity).
+      // Only run once per distinct value; re-render if it surfaces a new hit.
+      if (val && !(val in breachCache)) {
+        var myId = ++breachReqId;
+        Demo.breachLookup(val).then(function (count) {
+          if (myId !== breachReqId || count == null) return; // stale or unreachable
+          breachCache[val] = count;
+          if (count > 0 && pw.value === val) refresh();
+        });
+      }
     }
     pw.addEventListener('input', refresh);
     pw2.addEventListener('input', refresh);

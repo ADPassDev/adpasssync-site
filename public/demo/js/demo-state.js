@@ -193,8 +193,9 @@
 
   // Password policy mirrors the product's defaults: length + character classes
   // + a breach check. Returns rule results, a 0-4 strength score, and the
-  // simulated number of breaches the password appears in.
-  function checkPassword(pw) {
+  // number of breaches the password appears in. `knownBreachCount` lets the
+  // caller fold in an authoritative hit from the live corpus (see breachLookup).
+  function checkPassword(pw, knownBreachCount) {
     pw = pw || '';
     const rules = [
       { label: 'At least 12 characters', ok: pw.length >= 12 },
@@ -202,7 +203,7 @@
       { label: 'At least one number', ok: /[0-9]/.test(pw) },
       { label: 'At least one symbol', ok: /[^A-Za-z0-9]/.test(pw) },
     ];
-    const breachCount = breachHits(pw);
+    const breachCount = Math.max(breachHits(pw), knownBreachCount || 0);
     rules.push({ label: 'Not found in any known breach', ok: pw.length > 0 && breachCount === 0 });
 
     const met = rules.filter((r) => r.ok).length;
@@ -215,11 +216,60 @@
     };
   }
 
+  // Instant, fully-offline pre-check against a tiny built-in list so the most
+  // obvious passwords fire before any network round-trip.
   function breachHits(pw) {
     const lower = pw.toLowerCase();
     if (BREACHED.has(lower)) return 1 + (lower.charCodeAt(0) % 9) * 137; // pseudo "found in N breaches"
     if (/^(password|welcome|admin|acme|qwerty)/i.test(pw) && pw.length < 14) return 3;
     return 0;
+  }
+
+  function sha1Hex(str) {
+    return crypto.subtle
+      .digest('SHA-1', new TextEncoder().encode(str))
+      .then((buf) =>
+        Array.from(new Uint8Array(buf))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('')
+      );
+  }
+
+  // Authoritative breach check against Have I Been Pwned's Pwned Passwords
+  // corpus (~900M+ real leaked passwords) using its k-anonymity range API:
+  // we SHA-1 the password and send only the first 5 hex chars of the hash.
+  // The password and its full hash never leave the browser. Resolves to the
+  // number of times the password appears in known breaches, or null if the
+  // corpus can't be reached (caller then falls back to the offline pre-check).
+  function breachLookup(pw) {
+    pw = pw || '';
+    if (!pw) return Promise.resolve(0);
+    const local = breachHits(pw);
+    if (local) return Promise.resolve(local);
+    if (!(window.crypto && crypto.subtle && window.fetch)) return Promise.resolve(null);
+    return sha1Hex(pw)
+      .then((hash) => {
+        const upper = hash.toUpperCase();
+        const prefix = upper.slice(0, 5);
+        const suffix = upper.slice(5);
+        return fetch('https://api.pwnedpasswords.com/range/' + prefix, {
+          headers: { 'Add-Padding': 'true' },
+        }).then((resp) => {
+          if (!resp.ok) return null;
+          return resp.text().then((text) => {
+            const lines = text.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+              const parts = lines[i].split(':');
+              if (parts[0] && parts[0].trim().toUpperCase() === suffix) {
+                const n = parseInt(parts[1], 10);
+                return n > 0 ? n : 0; // padded decoys report a count of 0
+              }
+            }
+            return 0;
+          });
+        });
+      })
+      .catch(() => null);
   }
 
   function generateOtp(seed) {
@@ -257,6 +307,7 @@
     enrollMfa,
     recordBreachBlock,
     checkPassword,
+    breachLookup,
     generateOtp,
     fmtAgo,
   };
