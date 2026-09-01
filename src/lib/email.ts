@@ -69,18 +69,21 @@ export async function sendMagicLinkEmail(
 }
 
 /**
- * Notify each address in env.ADMIN_EMAILS that a customer submitted a quote
- * request. Best-effort — caller should wrap in waitUntil so a flaky email
- * provider doesn't fail the user-facing request.
+ * Notify each address in env.PURCHASE_NOTIFY_EMAILS that a customer submitted
+ * a quote request. Deliberately not ADMIN_EMAILS: that is the portal admin
+ * identity (see isAdminEmail) and need not be a deliverable mailbox.
+ *
+ * Best-effort — caller should wrap in waitUntil so a flaky email provider
+ * doesn't fail the user-facing request.
  */
 export async function sendPurchaseAlertEmail(
   env: Env,
   purchase: Purchase,
   customer: Customer,
 ): Promise<SendResult> {
-  const recipients = parseRecipients(env.ADMIN_EMAILS);
+  const recipients = parseRecipients(env.PURCHASE_NOTIFY_EMAILS);
   if (!recipients.length) {
-    console.log('[purchase-alert] ADMIN_EMAILS is empty, skipping');
+    console.log('[purchase-alert] PURCHASE_NOTIFY_EMAILS is empty, skipping');
     return { sent: false, provider: 'noop' };
   }
 

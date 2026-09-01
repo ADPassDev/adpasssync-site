@@ -58,6 +58,11 @@
 		// from ADMIN_EMAILS, which controls portal admin access — the two need to
 		// be able to move independently.
 		"CONTACT_NOTIFY_EMAILS": "pidclawbot@gmail.com",
+		// Where quote-request alerts are sent. Also kept off ADMIN_EMAILS:
+		// admin@adpasssync.com is the portal admin identity, but nothing is
+		// currently routing inbound mail for the domain, so alerts addressed
+		// there were being accepted and silently dropped.
+		"PURCHASE_NOTIFY_EMAILS": "pidclawbot@gmail.com",
 		"SESSION_TTL_HOURS": "24",
 		"MAGIC_LINK_TTL_MINUTES": "15",
 		"FROM_EMAIL": "no-reply@adpasssync.com",
