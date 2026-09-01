@@ -440,6 +440,11 @@
         .form-group textarea { resize: vertical; min-height: 120px; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .form-submit { width: 100%; margin-top: 0.5rem; }
+        .form-submit[disabled] { opacity: 0.6; cursor: default; }
+        .form-status { margin-top: 1rem; font-size: 0.9rem; line-height: 1.5; display: none; }
+        .form-status.show { display: block; }
+        .form-status.ok { color: var(--green); }
+        .form-status.err { color: var(--red); }
 
         /* FOOTER */
         footer { border-top: 1px solid var(--border); padding: 3rem 2rem; }
@@ -958,11 +963,8 @@
             <p class="section-subtitle">Questions about ADPassSync? Want to discuss pricing for your organization? We'd love to hear from you.</p>
         </div>
         <div class="contact-card">
-            <form id="contactForm" action="https://formsubmit.co/pidclawbot@gmail.com" method="POST">
-                <input type="hidden" name="_subject" value="ADPassSync Website Inquiry">
-                <input type="hidden" name="_captcha" value="false">
-                <input type="hidden" name="_next" value="https://adpasssync.pages.dev/#contact">
-                <input type="text" name="_honey" style="display:none">
+            <form id="contactForm" method="POST" action="/api/contact">
+                <input type="text" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true" style="display:none">
                 <div class="form-row">
                     <div class="form-group">
                         <label for="name">Name</label>
@@ -1006,6 +1008,7 @@
                     <textarea id="message" name="message" placeholder="Tell us about your environment and what you're looking for..."></textarea>
                 </div>
                 <button type="submit" class="btn btn-primary form-submit">Send Message &#8594;</button>
+                <p class="form-status" id="contactStatus" role="status" aria-live="polite"></p>
             </form>
         </div>
     </div>
@@ -1024,28 +1027,6 @@
     </div>
 </footer>
 
-<script>
-(function(){
-  var toggle = document.getElementById('navToggle');
-  var links = document.querySelector('.nav-links');
-  if (!toggle || !links) return;
-  toggle.addEventListener('click', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    links.classList.toggle('open');
-    toggle.setAttribute('aria-expanded', links.classList.contains('open'));
-  });
-  // Close menu when a nav link is tapped
-  links.querySelectorAll('a').forEach(function(a) {
-    a.addEventListener('click', function() { links.classList.remove('open'); });
-  });
-  // Close menu when tapping outside
-  document.addEventListener('click', function(e) {
-    if (!links.contains(e.target) && e.target !== toggle) {
-      links.classList.remove('open');
-    }
-  });
-})();
-</script>
+<script src="/js/site.js" defer></script>
 </body>
 </html>

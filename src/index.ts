@@ -15,6 +15,7 @@ import authRoutes from './routes/auth';
 import portalRoutes from './routes/portal';
 import adminRoutes from './routes/admin';
 import downloadsRoutes from './routes/downloads';
+import contactRoutes from './routes/contact';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -43,6 +44,9 @@ app.use('/api/*', loadSession);
 
 // Authentication endpoints (no auth required).
 app.route('/api/auth', authRoutes);
+
+// Public contact form on the marketing site (no auth required).
+app.route('/api/contact', contactRoutes);
 
 // Public R2-backed downloads for the pre-built bloom filter. No auth — the
 // bloom only contains hashes of publicly available HIBP data, and the agents

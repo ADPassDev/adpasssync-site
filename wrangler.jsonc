@@ -54,10 +54,18 @@
 	"vars": {
 		"PUBLIC_BASE_URL": "https://adpasssync.com",
 		"ADMIN_EMAILS": "admin@adpasssync.com",
+		// Where public contact-form submissions are sent. Deliberately separate
+		// from ADMIN_EMAILS, which controls portal admin access — the two need to
+		// be able to move independently.
+		"CONTACT_NOTIFY_EMAILS": "pidclawbot@gmail.com",
 		"SESSION_TTL_HOURS": "24",
 		"MAGIC_LINK_TTL_MINUTES": "15",
 		"FROM_EMAIL": "no-reply@adpasssync.com",
 		"INSTALLER_OBJECT_KEY": "current/ADPassSync-Setup.msi",
+		// Optional companion package (Windows credential provider) bundled into
+		// the same portal ZIP. If the object is absent the ZIP simply ships
+		// without it rather than failing the download.
+		"CREDPROV_OBJECT_KEY": "current/ADPassCredProv.msi",
 		"DEV_RETURN_MAGIC_LINK": "false",
 		// Object keys inside HASHDB_BUCKET. "current/" is the live channel
 		// served at /downloads/*. Archived builds live under archive/<version>/
