@@ -159,8 +159,16 @@ portal.get('/download', async (c) => {
     }
   }
 
-  // 3. Pull the MSI from R2.
-  const obj = await env.INSTALLER_BUCKET.get(env.INSTALLER_OBJECT_KEY);
+  // 3. Pull the installers from R2. The credential provider is a separate,
+  //    optional package for workstations — if it hasn't been published yet the
+  //    ZIP ships without it rather than failing the whole download.
+  const [obj, credProvObj] = await Promise.all([
+    env.INSTALLER_BUCKET.get(env.INSTALLER_OBJECT_KEY),
+    env.INSTALLER_BUCKET.get(env.CREDPROV_OBJECT_KEY).catch((e) => {
+      console.error('credprov fetch failed', e);
+      return null;
+    }),
+  ]);
   if (!obj) {
     return c.json(
       { error: 'installer_missing', detail: `no R2 object at ${env.INSTALLER_OBJECT_KEY}` },
@@ -170,12 +178,32 @@ portal.get('/download', async (c) => {
   const msiBytes = new Uint8Array(await obj.arrayBuffer());
   const version = obj.customMetadata?.version ?? null;
 
+  if (!credProvObj) {
+    console.warn(`credprov installer missing at ${env.CREDPROV_OBJECT_KEY}`);
+  }
+  const credProv = credProvObj
+    ? {
+        bytes: new Uint8Array(await credProvObj.arrayBuffer()),
+        version: credProvObj.customMetadata?.version ?? null,
+      }
+    : null;
+
   // 4. Build the ZIP. The license file ships as JSON so the agent can
   //    verify the signature with the bundled public key.
   const zipBytes = buildZip([
     { name: 'ADPassSync-Setup.msi', data: msiBytes },
+    ...(credProv ? [{ name: 'ADPassCredProv.msi', data: credProv.bytes }] : []),
     { name: 'license-key.txt', data: license.license_json },
-    { name: 'README.txt', data: readmeText(customer.email, installId, version) },
+    {
+      name: 'README.txt',
+      data: readmeText({
+        email: customer.email,
+        installId,
+        version,
+        credProvVersion: credProv ? credProv.version : null,
+        hasCredProv: credProv !== null,
+      }),
+    },
   ]);
 
   // 5. Audit + bookkeeping. Don't block the response on the writes.
@@ -244,7 +272,14 @@ portal.post('/purchase', async (c) => {
   return c.json({ ok: true, purchase });
 });
 
-function readmeText(email: string, installId: string, version: string | null): string {
+function readmeText(opts: {
+  email: string;
+  installId: string;
+  version: string | null;
+  credProvVersion: string | null;
+  hasCredProv: boolean;
+}): string {
+  const { email, installId, version, credProvVersion, hasCredProv } = opts;
   return [
     'ADPassSync',
     '==========',
@@ -252,6 +287,16 @@ function readmeText(email: string, installId: string, version: string | null): s
     `Account:    ${email}`,
     `Install ID: ${installId}`,
     version ? `Version:    ${version}` : null,
+    hasCredProv && credProvVersion ? `Cred. prov: ${credProvVersion}` : null,
+    '',
+    'Contents',
+    '--------',
+    'ADPassSync-Setup.msi  server package (service, password filter, portal)',
+    hasCredProv
+      ? 'ADPassCredProv.msi    optional Windows credential provider for'
+      : null,
+    hasCredProv ? '                      workstations and member servers' : null,
+    'license-key.txt       signed license, bound to the Install ID above',
     '',
     'Installation',
     '------------',
@@ -261,6 +306,22 @@ function readmeText(email: string, installId: string, version: string | null): s
     '   (typically C:\\Program Files\\ADPassSync\\).',
     '3. The service verifies the license signature on startup. The license',
     '   is bound to the Install ID above.',
+    ...(hasCredProv
+      ? [
+          '',
+          'Credential provider (optional)',
+          '------------------------------',
+          'ADPassCredProv.msi adds the ADPassSync tiles to the Ctrl+Alt+Del',
+          'change-password screen and the logon screen, so users see the live',
+          'policy rules and the reason a password was rejected. Install it on',
+          'workstations and member servers; it is not needed on the Domain',
+          'Controller and the rest of the product works without it.',
+          '',
+          'Deploy it by Group Policy software installation or your usual',
+          'endpoint management tool. A reboot is required before the tiles',
+          'appear.',
+        ]
+      : []),
     '',
     'Need help? https://adpasssync.com/#contact',
     '',

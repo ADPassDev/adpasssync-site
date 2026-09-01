@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "db:apply:local": "wrangler d1 execute adpasssync-db --local --file=./schema.sql",
     "db:apply:remote": "wrangler d1 execute adpasssync-db --remote --file=./schema.sql",
-    "keys:generate": "node --experimental-strip-types scripts/generate-keys.ts"
+    "keys:generate": "node --experimental-strip-types scripts/generate-keys.ts",
+    "installers:publish": "pwsh -NoProfile -File scripts/publish-installers.ps1"
   },
   "dependencies": {
     "hono": "^4.6.0"
