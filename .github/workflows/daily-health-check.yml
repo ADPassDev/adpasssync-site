@@ -1,0 +1,94 @@
+name: Daily health check
+
+# Daily smoke test of the live site at https://adpasssync.com.
+# A failed run makes GitHub email the repository's watchers.
+# A separate scheduled Claude task checks that the sign-in email reaches the
+# inbox and that its link works. This workflow only proves that Resend
+# accepted the email.
+#
+# Optional repository variable (Settings -> Secrets and variables -> Actions -> Variables):
+#   HEALTHCHECK_EMAIL  inbox that receives the daily test sign-in link.
+#                      Without it, the login step is skipped.
+
+on:
+  schedule:
+    - cron: '23 11 * * *' # daily, 11:23 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: daily-health-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE_URL: https://adpasssync.com
+      HEALTHCHECK_EMAIL: ${{ vars.HEALTHCHECK_EMAIL }}
+    steps:
+      - name: Check live site
+        shell: bash
+        run: |
+          set -uo pipefail
+          fail=0
+          ok()  { echo "PASS  $*"; }
+          bad() { echo "::error::$*"; fail=1; }
+          get() { curl -sS -m 20 --retry 2 --retry-all-errors -o body -D headers -w '%{http_code}' "$@" || echo 000; }
+
+          # Static pages
+          for p in / /portal/ /legal/eula; do
+            code=$(get "$BASE_URL$p")
+            [ "$code" = 200 ] && ok "GET $p -> 200" || bad "GET $p returned $code"
+          done
+
+          # Security headers from public/_headers
+          get "$BASE_URL/portal/" >/dev/null
+          for h in content-security-policy x-frame-options x-content-type-options; do
+            grep -qi "^$h:" headers && ok "header $h present" || bad "header $h missing on /portal/"
+          done
+          grep -qi '^cache-control:.*no-store' headers && ok "portal is no-store" || bad "portal/ is missing Cache-Control: no-store"
+
+          # Worker and API
+          code=$(get "$BASE_URL/api/health")
+          [ "$code" = 200 ] && jq -e '.ok == true' body >/dev/null \
+            && ok "GET /api/health ok" || bad "/api/health returned $code: $(head -c 300 body)"
+
+          code=$(get "$BASE_URL/api/auth/me")
+          [ "$code" = 200 ] && jq -e '.authenticated == false' body >/dev/null \
+            && ok "GET /api/auth/me (anonymous) ok" || bad "/api/auth/me returned $code: $(head -c 300 body)"
+
+          # LICENSE_PUBLIC_KEY secret is configured on the Worker
+          code=$(get "$BASE_URL/api/public-key")
+          [ "$code" = 200 ] && grep -q 'BEGIN PUBLIC KEY' body \
+            && ok "GET /api/public-key returns a PEM key" || bad "/api/public-key returned $code (license key not configured?)"
+
+          # Signed-in API must refuse anonymous requests
+          code=$(get "$BASE_URL/api/portal/dashboard")
+          case "$code" in 401|403) ok "anonymous /api/portal/* refused ($code)";; *) bad "anonymous /api/portal/dashboard returned $code, expected 401/403";; esac
+
+          # Login API validates input (no email sent)
+          code=$(get -X POST -H 'content-type: application/json' -d '{"email":"not-an-email"}' "$BASE_URL/api/auth/login")
+          [ "$code" = 400 ] && ok "login rejects invalid email" || bad "invalid-email login returned $code, expected 400"
+
+          # Real login: proves D1 write + Resend accepted the email.
+          if [ -n "${HEALTHCHECK_EMAIL:-}" ]; then
+            payload=$(jq -nc --arg e "$HEALTHCHECK_EMAIL" '{email:$e}')
+            code=$(get -X POST -H 'content-type: application/json' -d "$payload" "$BASE_URL/api/auth/login")
+            if [ "$code" = 200 ] && jq -e '.ok == true' body >/dev/null; then
+              ok "login accepted; Resend took the email"
+            else
+              bad "login returned $code: $(head -c 300 body) (Resend or D1 failure; check Workers logs)"
+            fi
+            # Production must never return the link in the response.
+            jq -e 'has("dev_link") | not' body >/dev/null \
+              && ok "no dev_link in production response" \
+              || bad "production login response contains dev_link: DEV_RETURN_MAGIC_LINK is on"
+          else
+            echo "::warning::HEALTHCHECK_EMAIL repository variable not set; skipped the real login/email check"
+          fi
+
+          rm -f body headers
+          exit $fail
