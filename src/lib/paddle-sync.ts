@@ -20,7 +20,7 @@ import {
 import { findCustomerByEmail, findCustomerById, getEntitlement, nowSeconds, setEntitlement } from './db';
 import { effectiveEntitlement } from './license';
 import { applyEntitlementChange } from './entitlement-effects';
-import { cancelSubscriptionNow, getPaddleCustomer } from './paddle';
+import { cancelSubscriptionNow, getPaddleCustomer, getPaddleSubscription } from './paddle';
 
 export type PaddleEvent = {
   event_id: string;
@@ -81,16 +81,22 @@ const UPSERT_SUBSCRIPTION = `
     updated_at     = excluded.updated_at`;
 
 async function onSubscription(env: Env, ctx: ExecutionContext, sub: PaddleSubscription): Promise<void> {
+  const customer = await recordSubscription(env, sub);
+  if (customer) await refreshEntitlement(env, ctx, customer);
+}
+
+/** Stores the subscription's state for its portal account, which it returns (null if none). */
+async function recordSubscription(env: Env, sub: PaddleSubscription): Promise<Customer | null> {
   const customer = await resolveCustomer(env, sub.custom_data, sub.customer_id);
   if (!customer) {
     console.error('paddle: no portal account for subscription', sub.id, sub.customer_id);
-    return;
+    return null;
   }
   const f = subscriptionFields(sub, env.PADDLE_PRICE_ID);
   await env.DB.prepare(UPSERT_SUBSCRIPTION)
     .bind(sub.id, customer.id, f.status, f.quantity, f.periodPaidThrough, f.next_billed_at, f.cancel_at, f.updated_ms, nowSeconds())
     .run();
-  await refreshEntitlement(env, ctx, customer);
+  return customer;
 }
 
 // A completed payment for a subscription covers its billing period.
@@ -123,12 +129,28 @@ async function onAdjustment(env: Env, ctx: ExecutionContext, adj: PaddleAdjustme
   const restores = adj.action === 'chargeback_reverse';
   if (!ends && !restores) return;
 
-  const row = await env.DB.prepare('SELECT * FROM paddle_subscriptions WHERE id = ?1')
-    .bind(adj.subscription_id)
-    .first<SubscriptionRecord & { ended_by: string | null }>();
+  const subscriptionRow = () =>
+    env.DB.prepare('SELECT * FROM paddle_subscriptions WHERE id = ?1')
+      .bind(adj.subscription_id)
+      .first<SubscriptionRecord & { ended_by: string | null }>();
+  let row = await subscriptionRow();
+  let recorded = false;
   if (!row) {
-    console.error('paddle: adjustment for unknown subscription', adj.id, adj.subscription_id);
-    return;
+    // Paddle doesn't promise order, and retries after an outage come in any
+    // order, so a refund can arrive before anything about its subscription.
+    // Record the subscription from Paddle first, granting nothing yet, so the
+    // refund applies to it and the term it ends is never handed out (nor a
+    // "license ready" email sent) when the payment's notification turns up.
+    // A failed lookup throws: Paddle retries the refund later.
+    const sub = await getPaddleSubscription(env, adj.subscription_id);
+    if (sub && (await recordSubscription(env, sub))) {
+      row = await subscriptionRow();
+      recorded = true;
+    }
+    if (!row) {
+      console.error('paddle: adjustment for a subscription no portal account has', adj.id, adj.subscription_id);
+      return;
+    }
   }
   if (ends) {
     await env.DB.prepare(
@@ -147,13 +169,14 @@ async function onAdjustment(env: Env, ctx: ExecutionContext, adj: PaddleAdjustme
         console.error('paddle: cancel after refund failed', row.id, e);
       }
     }
-  } else {
-    if (row.ended_by !== 'chargeback') return; // a refund stands
+  } else if (row.ended_by === 'chargeback') {
     await env.DB.prepare(
       'UPDATE paddle_subscriptions SET refunded_at = NULL, ended_by = NULL, updated_at = ?2 WHERE id = ?1',
     )
       .bind(row.id, nowSeconds())
       .run();
+  } else if (!recorded) {
+    return; // a refund stands, and nothing changed
   }
   const customer = await findCustomerById(env.DB, row.customer_id);
   if (customer) await refreshEntitlement(env, ctx, customer);

@@ -4,6 +4,7 @@
 // responses are { data, meta } or { error: { type, code, detail } }.
 
 import type { Env } from '../types';
+import type { PaddleSubscription } from './billing';
 
 export class PaddleApiError extends Error {
   override name = 'PaddleApiError';
@@ -14,11 +15,6 @@ export class PaddleApiError extends Error {
   ) {
     super(`Paddle API ${status} ${code}: ${detail}`);
   }
-}
-
-/** Self-service purchasing needs the API key, the Professional price and a Paddle.js token. */
-export function paddleConfigured(env: Env): boolean {
-  return Boolean(env.PADDLE_API_KEY && env.PADDLE_PRICE_ID && env.PADDLE_CLIENT_TOKEN);
 }
 
 function baseUrl(env: Env): string {
@@ -121,6 +117,16 @@ export async function changeSubscriptionQuantity(
   );
   const totals = data?.immediate_transaction?.details?.totals;
   return { charge_now: totals?.grand_total ?? null, currency_code: totals?.currency_code ?? null };
+}
+
+/** The subscription as Paddle has it now; null if this Paddle account has no such subscription. */
+export async function getPaddleSubscription(env: Env, subscriptionId: string): Promise<PaddleSubscription | null> {
+  try {
+    return await call<PaddleSubscription>(env, 'GET', `/subscriptions/${seg(subscriptionId)}`);
+  } catch (e) {
+    if (e instanceof PaddleApiError && e.status === 404) return null;
+    throw e;
+  }
 }
 
 /** Cancels now, not at the end of the period (used when a refund ends the term). */

@@ -8,6 +8,7 @@ import {
   MAX_PAID_USERS,
   MIN_PAID_USERS,
   billingOpenTo,
+  paddleConfigured,
   parsePaidUsers,
   type SubscriptionRecord,
 } from '../lib/billing';
@@ -17,7 +18,6 @@ import {
   createCheckoutTransaction,
   createPortalSession,
   findOrCreatePaddleCustomer,
-  paddleConfigured,
 } from '../lib/paddle';
 import { getHashDbKey } from '../lib/hashdb-key';
 import { getEntitlement } from '../lib/db';

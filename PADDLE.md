@@ -86,8 +86,11 @@ npx wrangler secret put PADDLE_WEBHOOK_SECRET
 
 `PADDLE_ENV` in `wrangler.jsonc` is `"sandbox"` while testing and
 `"production"` for live. The API key, client-side token and price ID must all
-come from that same environment. With `PADDLE_PRICE_ID` or
-`PADDLE_CLIENT_TOKEN` empty, the dashboard falls back to quote requests.
+come from that same environment. Until the API key, webhook secret, price ID
+and client-side token are all set, the dashboard offers quote requests
+instead of checkout. That includes the webhook secret: without it every
+payment notification is rejected, so a checkout would take money that never
+becomes a license.
 
 While `PADDLE_ENV` is `"sandbox"`, only the accounts listed in
 `PADDLE_SANDBOX_TESTERS` can buy. Sandbox checkouts take Paddle's published

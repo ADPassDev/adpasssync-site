@@ -10,6 +10,7 @@ import { verifyPaddleSignature } from '../src/lib/paddle-signature.ts';
 import {
   MIN_PAID_USERS,
   billingOpenTo,
+  paddleConfigured,
   paidTerm,
   parsePaidUsers,
   subscriptionFields,
@@ -148,4 +149,18 @@ test('sandbox billing with no testers, or an unknown environment, is closed', ()
   assert.equal(billingOpenTo({ PADDLE_ENV: 'sandbox', PADDLE_SANDBOX_TESTERS: '' }, 'tester@example.com'), false);
   assert.equal(billingOpenTo({ PADDLE_ENV: 'Production', PADDLE_SANDBOX_TESTERS: '' }, 'tester@example.com'), false);
   assert.equal(billingOpenTo({}, 'tester@example.com'), false);
+});
+
+test('purchasing stays off until every Paddle setting is present, the webhook secret included', () => {
+  const full = {
+    PADDLE_API_KEY: 'pdl_sdbx_apikey_x',
+    PADDLE_PRICE_ID: 'pri_x',
+    PADDLE_CLIENT_TOKEN: 'test_x',
+    PADDLE_WEBHOOK_SECRET: 'pdl_ntfset_x',
+  };
+  assert.equal(paddleConfigured(full), true);
+  for (const name of ['PADDLE_API_KEY', 'PADDLE_PRICE_ID', 'PADDLE_CLIENT_TOKEN', 'PADDLE_WEBHOOK_SECRET']) {
+    assert.equal(paddleConfigured({ ...full, [name]: '' }), false, `${name} empty`);
+    assert.equal(paddleConfigured({ ...full, [name]: undefined }), false, `${name} missing`);
+  }
 });

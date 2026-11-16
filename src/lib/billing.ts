@@ -62,6 +62,21 @@ export function toUnixSeconds(iso: string | null | undefined): number | null {
 }
 
 /**
+ * Self-service purchasing needs the API key, the Professional price, a
+ * Paddle.js token and the webhook secret. Without the secret every payment
+ * notification is rejected, so a checkout would take money that never
+ * becomes a license.
+ */
+export function paddleConfigured(env: {
+  PADDLE_API_KEY?: string;
+  PADDLE_PRICE_ID?: string;
+  PADDLE_CLIENT_TOKEN?: string;
+  PADDLE_WEBHOOK_SECRET?: string;
+}): boolean {
+  return Boolean(env.PADDLE_API_KEY && env.PADDLE_PRICE_ID && env.PADDLE_CLIENT_TOKEN && env.PADDLE_WEBHOOK_SECRET);
+}
+
+/**
  * Whether this account may buy through Paddle. In production, everyone. In
  * the sandbox, only the accounts listed in PADDLE_SANDBOX_TESTERS (comma
  * separated): the sandbox takes Paddle's published test cards, so on the live

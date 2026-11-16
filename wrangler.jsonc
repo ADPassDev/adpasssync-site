@@ -99,7 +99,9 @@
 		// Paddle Billing. "sandbox" or "production"; the API key, client-side
 		// token and price must all come from that same environment. Leave
 		// PADDLE_PRICE_ID or PADDLE_CLIENT_TOKEN empty to turn self-service
-		// purchasing off (the dashboard falls back to quote requests).
+		// purchasing off (the dashboard falls back to quote requests). It's
+		// also off while the PADDLE_API_KEY or PADDLE_WEBHOOK_SECRET secret
+		// is missing, so payments can't be taken that never become licenses.
 		"PADDLE_ENV": "sandbox",
 		// The Professional price: $5 per user per year, quantity 51-100000.
 		"PADDLE_PRICE_ID": "",
