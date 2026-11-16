@@ -10,6 +10,7 @@
 import type { Customer, Env } from '../types';
 import {
   MIN_PAID_USERS,
+  billingOpenTo,
   paidTerm,
   subscriptionFields,
   toUnixSeconds,
@@ -198,7 +199,8 @@ async function refreshEntitlement(env: Env, ctx: ExecutionContext, customer: Cus
  * The portal account a Paddle object belongs to: the customer_id the portal
  * put in custom_data when it created the checkout, else a previously seen
  * Paddle customer, else (for subscriptions set up in Paddle directly) an
- * account with the Paddle customer's email.
+ * account with the Paddle customer's email. Null in the sandbox for anyone
+ * who isn't a named tester, so their test-card payments grant nothing.
  */
 async function resolveCustomer(
   env: Env,
@@ -223,6 +225,12 @@ async function resolveCustomer(
     } catch (e) {
       console.error('paddle: customer lookup failed', paddleCustomerId, e);
     }
+  }
+
+  // Sandbox payments use public test cards: they count only for named testers.
+  if (customer && !billingOpenTo(env, customer.email)) {
+    console.warn('paddle: sandbox event for an account that is not a tester; ignored', customer.id);
+    return null;
   }
 
   if (customer && paddleCustomerId) {

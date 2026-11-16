@@ -4,7 +4,13 @@
 
 import { Hono } from 'hono';
 import type { Customer, Env, Variables } from '../types';
-import { MAX_PAID_USERS, MIN_PAID_USERS, parsePaidUsers, type SubscriptionRecord } from '../lib/billing';
+import {
+  MAX_PAID_USERS,
+  MIN_PAID_USERS,
+  billingOpenTo,
+  parsePaidUsers,
+  type SubscriptionRecord,
+} from '../lib/billing';
 import {
   PaddleApiError,
   changeSubscriptionQuantity,
@@ -32,7 +38,7 @@ billing.get('/', async (c) => {
   // The key is revoked whenever the customer is back on the free tier.
   const paid = effectiveEntitlement(await getEntitlement(c.env.DB, customer.id)).tier !== 'free';
   return c.json({
-    enabled: paddleConfigured(c.env),
+    enabled: closedFor(c.env, customer) === null,
     environment: c.env.PADDLE_ENV === 'production' ? 'production' : 'sandbox',
     client_token: c.env.PADDLE_CLIENT_TOKEN || null,
     min_users: MIN_PAID_USERS,
@@ -56,7 +62,8 @@ billing.get('/', async (c) => {
 // for Paddle.Checkout.open({ transactionId }).
 billing.post('/checkout', async (c) => {
   const customer = c.get('customer')!;
-  if (!paddleConfigured(c.env)) return c.json({ error: 'billing_not_configured' }, 503);
+  const closed = closedFor(c.env, customer);
+  if (closed) return c.json({ error: closed.error }, closed.status);
   const users = parsePaidUsers(((await readJson(c.req.raw)) as { users?: unknown } | null)?.users);
   if (users === null) return c.json({ error: 'invalid_users', min: MIN_PAID_USERS, max: MAX_PAID_USERS }, 400);
 
@@ -80,7 +87,8 @@ billing.post('/checkout', async (c) => {
 for (const [path, preview] of [['/users/preview', true], ['/users', false]] as const) {
   billing.post(path, async (c) => {
     const customer = c.get('customer')!;
-    if (!paddleConfigured(c.env)) return c.json({ error: 'billing_not_configured' }, 503);
+    const closed = closedFor(c.env, customer);
+    if (closed) return c.json({ error: closed.error }, closed.status);
     const users = parsePaidUsers(((await readJson(c.req.raw)) as { users?: unknown } | null)?.users);
     if (users === null) return c.json({ error: 'invalid_users', min: MIN_PAID_USERS, max: MAX_PAID_USERS }, 400);
 
@@ -102,7 +110,8 @@ for (const [path, preview] of [['/users/preview', true], ['/users', false]] as c
 // A fresh link to Paddle's customer portal: payment method, invoices, cancel.
 billing.post('/portal', async (c) => {
   const customer = c.get('customer')!;
-  if (!paddleConfigured(c.env)) return c.json({ error: 'billing_not_configured' }, 503);
+  const closed = closedFor(c.env, customer);
+  if (closed) return c.json({ error: closed.error }, closed.status);
   const row = await c.env.DB.prepare('SELECT paddle_customer_id FROM paddle_customers WHERE customer_id = ?1')
     .bind(customer.id)
     .first<{ paddle_customer_id: string }>();
@@ -117,6 +126,16 @@ billing.post('/portal', async (c) => {
     return paddleFailure(c, 'portal session', e);
   }
 });
+
+/**
+ * Why this customer can't use Paddle right now, if they can't: purchasing
+ * isn't configured, or it's the sandbox and they aren't a named tester.
+ */
+function closedFor(env: Env, customer: Customer): { error: string; status: 403 | 503 } | null {
+  if (!paddleConfigured(env)) return { error: 'billing_not_configured', status: 503 };
+  if (!billingOpenTo(env, customer.email)) return { error: 'billing_testers_only', status: 403 };
+  return null;
+}
 
 /** The customer's subscription to show: the newest live one, else the newest. */
 async function currentSubscription(db: D1Database, customerId: string): Promise<SubscriptionRecord | null> {

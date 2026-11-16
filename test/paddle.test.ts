@@ -9,6 +9,7 @@ import { createHmac } from 'node:crypto';
 import { verifyPaddleSignature } from '../src/lib/paddle-signature.ts';
 import {
   MIN_PAID_USERS,
+  billingOpenTo,
   paidTerm,
   parsePaidUsers,
   subscriptionFields,
@@ -126,4 +127,25 @@ test('users to buy: whole numbers from 51 to 100,000', () => {
   for (const bad of [50, 0, -1, 51.5, 100001, '', 'abc', null, undefined]) {
     assert.equal(parsePaidUsers(bad), null, String(bad));
   }
+});
+
+test('production billing is open to everyone', () => {
+  assert.equal(billingOpenTo({ PADDLE_ENV: 'production' }, 'anyone@example.com'), true);
+  assert.equal(billingOpenTo({ PADDLE_ENV: 'production', PADDLE_SANDBOX_TESTERS: 'tester@example.com' }, 'anyone@example.com'), true);
+});
+
+test('sandbox billing is only for the named testers', () => {
+  const env = { PADDLE_ENV: 'sandbox', PADDLE_SANDBOX_TESTERS: ' Tester@Example.com , second@example.com,' };
+  assert.equal(billingOpenTo(env, 'tester@example.com'), true, 'case and spaces ignored');
+  assert.equal(billingOpenTo(env, 'SECOND@example.com'), true);
+  assert.equal(billingOpenTo(env, 'outsider@example.com'), false);
+  assert.equal(billingOpenTo(env, ''), false, 'an empty entry matches nobody');
+  assert.equal(billingOpenTo(env, 'tester@example.com.evil.test'), false, 'whole addresses only');
+});
+
+test('sandbox billing with no testers, or an unknown environment, is closed', () => {
+  assert.equal(billingOpenTo({ PADDLE_ENV: 'sandbox' }, 'tester@example.com'), false);
+  assert.equal(billingOpenTo({ PADDLE_ENV: 'sandbox', PADDLE_SANDBOX_TESTERS: '' }, 'tester@example.com'), false);
+  assert.equal(billingOpenTo({ PADDLE_ENV: 'Production', PADDLE_SANDBOX_TESTERS: '' }, 'tester@example.com'), false);
+  assert.equal(billingOpenTo({}, 'tester@example.com'), false);
 });

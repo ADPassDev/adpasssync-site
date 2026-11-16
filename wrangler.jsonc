@@ -68,6 +68,10 @@
 	//   PADDLE_API_KEY       Paddle API key (server-side; see PADDLE_ENV)
 	//   PADDLE_WEBHOOK_SECRET  secret key of the Paddle notification
 	//                        destination pointing at /api/paddle/webhook
+	//   PADDLE_SANDBOX_TESTERS  while PADDLE_ENV is "sandbox": the only
+	//                        accounts (comma-separated emails) that can buy.
+	//                        Sandbox checkouts take Paddle's public test
+	//                        cards, so nobody else gets one on the live site.
 	"vars": {
 		"PUBLIC_BASE_URL": "https://adpasssync.com",
 		"ADMIN_EMAILS": "admin@adpasssync.com",

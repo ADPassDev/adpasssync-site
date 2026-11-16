@@ -31,6 +31,9 @@ export type Env = {
   PADDLE_CLIENT_TOKEN: string;
   PADDLE_API_KEY?: string;
   PADDLE_WEBHOOK_SECRET?: string;
+  // While PADDLE_ENV isn't "production": the only accounts (comma-separated
+  // emails) that may buy. Everyone else gets quote requests.
+  PADDLE_SANDBOX_TESTERS?: string;
   // Overrides the API base URL that PADDLE_ENV implies. Local tests only.
   PADDLE_API_BASE_URL?: string;
   // The adpasssync-downloads Worker's D1, for full bloom filter keys.

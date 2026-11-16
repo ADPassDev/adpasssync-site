@@ -61,6 +61,22 @@ export function toUnixSeconds(iso: string | null | undefined): number | null {
   return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
 }
 
+/**
+ * Whether this account may buy through Paddle. In production, everyone. In
+ * the sandbox, only the accounts listed in PADDLE_SANDBOX_TESTERS (comma
+ * separated): the sandbox takes Paddle's published test cards, so on the live
+ * site an open sandbox checkout would hand out paid licenses for nothing.
+ */
+export function billingOpenTo(
+  env: { PADDLE_ENV?: string; PADDLE_SANDBOX_TESTERS?: string },
+  email: string,
+): boolean {
+  if (env.PADDLE_ENV === 'production') return true;
+  const who = email.trim().toLowerCase();
+  if (!who) return false;
+  return (env.PADDLE_SANDBOX_TESTERS ?? '').split(',').some((t) => t.trim().toLowerCase() === who);
+}
+
 /** Valid number of users to buy: a whole number from 51 to 100,000. */
 export function parsePaidUsers(raw: unknown): number | null {
   const n = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : raw;
