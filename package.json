@@ -12,8 +12,7 @@
     "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
     "db:apply:local": "wrangler d1 execute adpasssync-db --local --file=./schema.sql",
     "db:apply:remote": "wrangler d1 execute adpasssync-db --remote --file=./schema.sql",
-    "keys:generate": "node --experimental-strip-types scripts/generate-keys.ts",
-    "installers:publish": "pwsh -NoProfile -File scripts/publish-installers.ps1"
+    "keys:generate": "node --experimental-strip-types scripts/generate-keys.ts"
   },
   "dependencies": {
     "hono": "^4.6.0"
