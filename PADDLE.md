@@ -77,19 +77,35 @@ npx wrangler secret put PADDLE_WEBHOOK_SECRET
 come from that same environment. With `PADDLE_PRICE_ID` or
 `PADDLE_CLIENT_TOKEN` empty, the dashboard falls back to quote requests.
 
-## 6. Deploy
+While `PADDLE_ENV` is `"sandbox"`, only the accounts listed in
+`PADDLE_SANDBOX_TESTERS` can buy. Sandbox checkouts take Paddle's published
+test cards, so this stops anyone else getting a paid license for nothing while
+the live site is pointed at the sandbox. Everyone else sees quote requests,
+and sandbox payments for their accounts grant nothing. Store the list as a
+secret, so the addresses stay out of this public repository:
 
 ```bash
-npm run db:migrate:remote
+npx wrangler secret put PADDLE_SANDBOX_TESTERS
 ```
+
+Enter one or more portal sign-in emails, separated by commas.
+
+## 6. Deploy
+
+The licensing migrations must have run (`npm run db:migrate:remote`; it says
+there's nothing to apply once they have). Then:
 
 ```bash
 npm run deploy
 ```
 
+Set the secrets before deploying the price ID and client token: until both
+are set, purchasing stays off, so the order doesn't matter to customers.
+
 ## 7. Test in the sandbox
 
-1. Sign in to the portal with a test account and register any Install ID.
+1. Sign in to the portal with an account listed in `PADDLE_SANDBOX_TESTERS`
+   and register an Install ID (any UUID works for this test).
 2. Buy 51 or more users with one of Paddle's sandbox test cards.
 3. Within a few seconds the Plan card shows Professional, the License card
    offers a `license.json` for that many users, and the full breached-password
@@ -100,3 +116,59 @@ npm run deploy
 5. Change the user count, then cancel in Manage billing: the plan keeps its
    paid term. Then refund the purchase in the Paddle dashboard: the plan goes
    back to Free and the key stops working.
+6. Sign in with an account that isn't a tester: the Plan card offers a quote
+   request, not a checkout.
+
+## 8. Go live
+
+Before switching:
+
+- **Product release.** Paid licenses are uploaded on the product's License
+  page. Releases up to 0.9.4.0 only accept them after an admin saves
+  `https://adpasssync.com/api/public-key` to a file and points
+  `license_public_key_path` at it. The next release has the key built in and
+  links its License page to the portal.
+- **Paddle's website approval** of `adpasssync.com` (Checkout > Website
+  approval in the live account). Paddle reviews the site for pricing, terms,
+  a privacy policy and a refund policy. The site has pricing and the EULA so
+  far.
+
+Then:
+
+1. Finish the sandbox test with the refund (step 7.5), so test accounts are
+   back on Free and their keys are revoked.
+2. Clear the sandbox records. They name sandbox customers and subscriptions
+   that don't exist in the live account, and would break checkout for the
+   test accounts:
+
+   ```bash
+   npx wrangler d1 execute adpasssync-db --remote --command "DELETE FROM paddle_events; DELETE FROM paddle_subscriptions; DELETE FROM paddle_customers;"
+   ```
+
+3. Repeat steps 1 to 4 in the live account: price, default payment link,
+   client-side token, API key, notification destination.
+4. Store the live API key and the live destination's secret key:
+
+   ```bash
+   npx wrangler secret put PADDLE_API_KEY
+   ```
+
+   ```bash
+   npx wrangler secret put PADDLE_WEBHOOK_SECRET
+   ```
+
+5. In `wrangler.jsonc`, set `PADDLE_ENV` to `"production"` and
+   `PADDLE_PRICE_ID` and `PADDLE_CLIENT_TOKEN` to the live values, then
+   deploy straight away (steps 4 and 5 back to back: in between, the site
+   holds live keys with sandbox settings and checkouts fail):
+
+   ```bash
+   npm run deploy
+   ```
+
+6. Deactivate the sandbox notification destination in the sandbox account,
+   and remove the tester list, which production ignores:
+
+   ```bash
+   npx wrangler secret delete PADDLE_SANDBOX_TESTERS
+   ```
