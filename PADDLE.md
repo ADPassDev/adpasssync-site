@@ -143,10 +143,13 @@ Before switching:
   `https://adpasssync.com/api/public-key` to a file and points
   `license_public_key_path` at it. The next release has the key built in and
   links its License page to the portal.
-- **Paddle's website approval** of `adpasssync.com` (Checkout > Website
-  approval in the live account). Paddle reviews the site for pricing, terms,
-  a privacy policy and a refund policy. The site has pricing and the EULA so
-  far.
+- **Paddle's website approval** of `adpasssync.com` (My account > Settings >
+  Website approval in the live account). Paddle reviews the site for pricing, terms,
+  a privacy policy and a refund policy, all reachable from its navigation.
+  They're at `/legal/terms.html` (naming Paddle as merchant of record),
+  `/legal/refund-policy.html`, `/legal/privacy.html` and `/legal/eula.html`,
+  linked from every page's footer. The legal name in them must match the
+  Paddle account exactly: AD Argus Cybersecurity Corporation.
 
 Then:
 

@@ -1,4 +1,4 @@
-// EULA page behaviour: table-of-contents flyout and the mobile nav toggle.
+// Legal pages behaviour: table-of-contents flyout and the mobile nav toggle.
 //
 // External rather than inline because the CSP in public/_headers sets
 // script-src 'self', which blocks both inline <script> bodies and inline
