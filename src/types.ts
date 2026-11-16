@@ -2,7 +2,7 @@
 
 export type Env = {
   DB: D1Database;
-  INSTALLER_BUCKET: R2Bucket;
+  RELEASES_BUCKET: R2Bucket;
   HASHDB_BUCKET: R2Bucket;
   ASSETS: Fetcher;
 
@@ -12,7 +12,7 @@ export type Env = {
   SESSION_TTL_HOURS: string;
   MAGIC_LINK_TTL_MINUTES: string;
   FROM_EMAIL: string;
-  INSTALLER_OBJECT_KEY: string;
+  RELEASE_MANIFEST_KEY: string;
   DEV_RETURN_MAGIC_LINK: string;
   HASHDB_BLOOM_KEY: string;
   HASHDB_SHA256_KEY: string;

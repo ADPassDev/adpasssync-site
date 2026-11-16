@@ -4,6 +4,14 @@
 import { Hono } from 'hono';
 import type { Env, Variables } from '../types';
 import {
+  loadLatestRelease,
+  openLatestReleasePackage,
+  releasePackageFile,
+  streamReleasePackage,
+  type Release,
+  type ReleasePackage,
+} from '../lib/release';
+import {
   findCustomerById,
   getActiveLicenseForCustomer,
   listDownloadsForCustomer,
@@ -16,18 +24,24 @@ import {
 import { uuidv4 } from '../lib/crypto';
 import { freeTierDefaults, issueLicense } from '../lib/license';
 import { getClientIp } from '../lib/auth';
-import { buildZip } from '../lib/zip';
 import { sendPurchaseAlertEmail } from '../lib/email';
 
 const portal = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+// Files the download adds to the release package.
+const LICENSE_FILE = 'license-key.txt';
+const README_FILE = 'README.txt';
+
 // GET /api/portal/dashboard
-// Top-level summary: customer info, license, download history.
+// Top-level summary: customer info, license, download history, and the
+// release the download button currently serves.
 portal.get('/dashboard', async (c) => {
   const customer = c.get('customer')!;
   const license = await getActiveLicenseForCustomer(c.env.DB, customer.id);
   const history = await listDownloadsForCustomer(c.env.DB, customer.id, 10);
+  const release = await latestReleaseSummary(c.env);
   return c.json({
+    release,
     customer: {
       id: customer.id,
       email: customer.email,
@@ -122,15 +136,29 @@ function normalizeProfileField(v: unknown): string | undefined | 'invalid' {
 }
 
 // GET /api/portal/download
-// Streams a ZIP containing the MSI installer and license-key.txt.
+// Streams the current release package (the zip that latest.json names in
+// the releases bucket: both MSIs, both guides, SHA256SUMS.txt) with the
+// customer's license-key.txt and a README.txt added.
+//   - Fails with 503, before touching the account, if the release can't be read.
 //   - On first call, allocates a UUID install_id for the customer.
 //   - On first call without a license, auto-issues a Free-tier license.
-//   - Records the download for audit.
+//   - Records the download, with the release version, for audit.
 portal.get('/download', async (c) => {
   const customer = c.get('customer')!;
   const env = c.env;
 
-  // 1. Ensure install_id (one-shot allocation, persisted).
+  // 1. Open the release package first, so a missing or broken release never
+  //    allocates an install ID or issues a license for a download that fails.
+  let pkg: ReleasePackage;
+  try {
+    pkg = await openLatestReleasePackage(env);
+  } catch (e) {
+    console.error('release package unavailable', e);
+    return c.json({ error: 'release_unavailable' }, 503);
+  }
+  const version = pkg.release.version;
+
+  // 2. Ensure install_id (one-shot allocation, persisted).
   let installId = customer.install_id;
   if (!installId) {
     installId = uuidv4();
@@ -138,7 +166,7 @@ portal.get('/download', async (c) => {
     customer.install_id = installId;
   }
 
-  // 2. Ensure an active license. Default to Free tier if none.
+  // 3. Ensure an active license. Default to Free tier if none.
   let license = await getActiveLicenseForCustomer(env.DB, customer.id);
   if (!license) {
     const def = freeTierDefaults();
@@ -159,24 +187,29 @@ portal.get('/download', async (c) => {
     }
   }
 
-  // 3. Pull the MSI from R2.
-  const obj = await env.INSTALLER_BUCKET.get(env.INSTALLER_OBJECT_KEY);
-  if (!obj) {
-    return c.json(
-      { error: 'installer_missing', detail: `no R2 object at ${env.INSTALLER_OBJECT_KEY}` },
-      503,
+  // 4. Stream the package with the license and README appended. The
+  //    package's own entries pass through byte-for-byte.
+  const added = new Set([LICENSE_FILE, README_FILE].map((n) => n.toLowerCase()));
+  const releaseFiles = pkg.records.map((r) => r.name).filter((n) => !added.has(n.toLowerCase()));
+  let body: ReadableStream<Uint8Array>;
+  try {
+    body = await streamReleasePackage(
+      env,
+      c.executionCtx,
+      pkg,
+      [
+        { name: LICENSE_FILE, data: license.license_json },
+        {
+          name: README_FILE,
+          data: readmeText({ email: customer.email, installId, release: pkg.release, releaseFiles }),
+        },
+      ],
+      new Date(),
     );
+  } catch (e) {
+    console.error('release package stream failed', e);
+    return c.json({ error: 'release_unavailable' }, 503);
   }
-  const msiBytes = new Uint8Array(await obj.arrayBuffer());
-  const version = obj.customMetadata?.version ?? null;
-
-  // 4. Build the ZIP. The license file ships as JSON so the agent can
-  //    verify the signature with the bundled public key.
-  const zipBytes = buildZip([
-    { name: 'ADPassSync-Setup.msi', data: msiBytes },
-    { name: 'license-key.txt', data: license.license_json },
-    { name: 'README.txt', data: readmeText(customer.email, installId, version) },
-  ]);
 
   // 5. Audit + bookkeeping. Don't block the response on the writes.
   c.executionCtx.waitUntil(
@@ -192,13 +225,13 @@ portal.get('/download', async (c) => {
     ]).catch((err) => console.error('download bookkeeping failed', err)),
   );
 
-  const filename = `ADPassSync-${customer.id.slice(0, 8)}.zip`;
-  return new Response(zipBytes, {
+  // Content-Length comes from the FixedLengthStream behind `body`.
+  const filename = `ADPassSync-${version}-${customer.id.slice(0, 8)}.zip`;
+  return new Response(body, {
     status: 200,
     headers: {
       'Content-Type': 'application/zip',
       'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Length': String(zipBytes.byteLength),
       'Cache-Control': 'no-store',
     },
   });
@@ -244,23 +277,63 @@ portal.post('/purchase', async (c) => {
   return c.json({ ok: true, purchase });
 });
 
-function readmeText(email: string, installId: string, version: string | null): string {
+/** What the dashboard shows about the current release; null if it can't be read. */
+async function latestReleaseSummary(
+  env: Env,
+): Promise<{ version: string; released_at: string | null; package_size: number | null } | null> {
+  try {
+    const release = await loadLatestRelease(env);
+    return {
+      version: release.version,
+      released_at: release.released_at,
+      package_size: releasePackageFile(release).size,
+    };
+  } catch (e) {
+    console.error('dashboard: release manifest unavailable', e);
+    return null;
+  }
+}
+
+function readmeText(args: {
+  email: string;
+  installId: string;
+  release: Release;
+  releaseFiles: string[];
+}): string {
+  const title = `ADPassSync ${args.release.version}`;
+  const released = args.release.released_at?.slice(0, 10) ?? null;
+  const hasSums = args.releaseFiles.includes('SHA256SUMS.txt');
   return [
-    'ADPassSync',
-    '==========',
+    title,
+    '='.repeat(title.length),
     '',
-    `Account:    ${email}`,
-    `Install ID: ${installId}`,
-    version ? `Version:    ${version}` : null,
+    `Account:    ${args.email}`,
+    `Install ID: ${args.installId}`,
+    released ? `Released:   ${released}` : null,
     '',
-    'Installation',
-    '------------',
-    '1. Run ADPassSync-Setup.msi on a Domain Controller (or member server',
-    '   running the AD PowerShell module) with administrator privileges.',
-    '2. When prompted, place license-key.txt in the install directory',
-    '   (typically C:\\Program Files\\ADPassSync\\).',
-    '3. The service verifies the license signature on startup. The license',
-    '   is bound to the Install ID above.',
+    'Contents',
+    '--------',
+    'The complete release package:',
+    '',
+    ...args.releaseFiles.map((n) => `  ${n}`),
+    '',
+    'plus two files added for your account:',
+    '',
+    `  ${LICENSE_FILE.padEnd(15)}  your signed license, bound to the Install ID above`,
+    `  ${README_FILE.padEnd(15)}  this file`,
+    ...(hasSums
+      ? [
+          '',
+          'SHA256SUMS.txt covers the release files, not the two added ones. Verify',
+          'with "sha256sum -c SHA256SUMS.txt", or compare each line against',
+          'Get-FileHash in PowerShell.',
+        ]
+      : []),
+    '',
+    'Getting started',
+    '---------------',
+    'Start with the Quick Start Guide. The Administrator Guide covers',
+    'deployment, configuration and licensing in full.',
     '',
     'Need help? https://adpasssync.com/#contact',
     '',
