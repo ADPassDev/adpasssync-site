@@ -157,6 +157,9 @@ export async function sendLicenseReadyEmail(
     ``,
     dashboard,
     ``,
+    `Your plan includes the full breached-password database. Your key for it is`,
+    `on the same dashboard page.`,
+    ``,
   ].join('\n');
 
   if (env.RESEND_API_KEY) {

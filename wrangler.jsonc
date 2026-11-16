@@ -21,12 +21,21 @@
 	"observability": {
 		"enabled": true
 	},
-	// D1 database for customers, sessions, licenses, downloads.
+	// D1 databases:
+	//   DB               — customers, sessions, licenses, downloads, billing.
+	//   HASHDB_LICENSES  — the adpasssync-downloads Worker's key table (product
+	//                      repo, cloudflare/worker). Paid customers get a key
+	//                      there for the full bloom filter at /downloads/paid/*.
 	"d1_databases": [
 		{
 			"binding": "DB",
 			"database_name": "adpasssync-db",
 			"database_id": "3b20d3ea-c2fd-4785-8587-19adbef6d025"
+		},
+		{
+			"binding": "HASHDB_LICENSES",
+			"database_name": "adpasssync-licenses",
+			"database_id": "d29d9072-d315-4d88-adad-00b9762f7efa"
 		}
 	],
 	// R2 buckets:
@@ -56,6 +65,9 @@
 	//   LICENSE_PRIVATE_KEY  PKCS8 PEM RSA private key used to sign licenses
 	//   LICENSE_PUBLIC_KEY   matching SPKI PEM public key (shipped with installer)
 	//   RESEND_API_KEY       optional: Resend API key for magic-link email
+	//   PADDLE_API_KEY       Paddle API key (server-side; see PADDLE_ENV)
+	//   PADDLE_WEBHOOK_SECRET  secret key of the Paddle notification
+	//                        destination pointing at /api/paddle/webhook
 	"vars": {
 		"PUBLIC_BASE_URL": "https://adpasssync.com",
 		"ADMIN_EMAILS": "admin@adpasssync.com",
@@ -70,6 +82,15 @@
 		// and aren't routed publicly.
 		"HASHDB_BLOOM_KEY": "current/hashdb.bin",
 		"HASHDB_SHA256_KEY": "current/hashdb.sha256",
-		"HASHDB_META_KEY": "current/hashdb.json"
+		"HASHDB_META_KEY": "current/hashdb.json",
+		// Paddle Billing. "sandbox" or "production"; the API key, client-side
+		// token and price must all come from that same environment. Leave
+		// PADDLE_PRICE_ID or PADDLE_CLIENT_TOKEN empty to turn self-service
+		// purchasing off (the dashboard falls back to quote requests).
+		"PADDLE_ENV": "sandbox",
+		// The Professional price: $5 per user per year, quantity 51-100000.
+		"PADDLE_PRICE_ID": "",
+		// Client-side token for Paddle.js (public by design).
+		"PADDLE_CLIENT_TOKEN": ""
 	}
 }

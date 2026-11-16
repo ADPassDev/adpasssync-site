@@ -166,6 +166,30 @@
         : '<dt>Recorded</dt><dd class="muted">None (free tier)</dd>') +
       '</dl>';
 
+    if (data.subscriptions && data.subscriptions.length) {
+      const when = function (t) { return t ? escapeText(new Date(t * 1000).toLocaleDateString()) : '—'; };
+      html += '<h2 style="margin-top:1.5rem">Paddle subscriptions</h2><table><thead><tr>' +
+        '<th>Subscription</th><th>Status</th><th>Users</th><th>Paid through</th><th>Cancels</th><th>Refunded</th>' +
+        '</tr></thead><tbody>';
+      for (const s of data.subscriptions) {
+        html += '<tr>' +
+          '<td class="mono">' + escapeText(s.id) + '</td>' +
+          '<td>' + escapeText(s.status) + '</td>' +
+          '<td>' + escapeText(String(s.quantity)) + '</td>' +
+          '<td>' + when(s.paid_through) + '</td>' +
+          '<td>' + when(s.cancel_at) + '</td>' +
+          '<td>' + when(s.refunded_at) + '</td>' +
+        '</tr>';
+      }
+      html += '</tbody></table><p class="muted" style="margin-top:0.5rem;font-size:0.85rem">' +
+        'Paddle sets the entitlement of customers with a paid subscription; saving one here is ' +
+        'overwritten by the next Paddle event.</p>';
+    }
+    if (data.hashdb_key) {
+      html += '<dl class="kv" style="margin-top:1rem"><dt>Bloom filter key</dt><dd class="mono">' +
+        escapeText(data.hashdb_key) + '</dd></dl>';
+    }
+
     if (data.license) {
       const lic = data.license;
       html += '<h2 style="margin-top:1.5rem">Current license file</h2>' +

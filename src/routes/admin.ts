@@ -2,7 +2,7 @@
 // every handler here can assume c.get('customer') is an admin.
 
 import { Hono } from 'hono';
-import type { Customer, Env, License, LicenseTier, Variables } from '../types';
+import type { Env, License, LicenseTier, Variables } from '../types';
 import {
   clearInstallation,
   findCustomerById,
@@ -17,13 +17,9 @@ import {
   updatePurchaseStatus,
 } from '../lib/db';
 import type { PurchaseStatus } from '../lib/db';
-import {
-  FREE_TIER_MAX_USERS,
-  effectiveEntitlement,
-  entitlementForPurchase,
-  issueLicense,
-} from '../lib/license';
-import { sendLicenseReadyEmail } from '../lib/email';
+import { FREE_TIER_MAX_USERS, effectiveEntitlement, entitlementForPurchase } from '../lib/license';
+import { applyEntitlementChange } from '../lib/entitlement-effects';
+import { getHashDbKey } from '../lib/hashdb-key';
 
 const admin = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -79,14 +75,10 @@ admin.post('/entitlement', async (c) => {
     source: `admin:${adminEmail}`,
   });
 
-  let license: License | null = null;
-  if (customer.install_id) {
-    try {
-      license = await reissue(c.env, customer);
-    } catch (e) {
-      return c.json({ error: 'sign_failed', detail: String(e) }, 500);
-    }
-  }
+  const { license, licenseError } = await applyEntitlementChange(c.env, c.executionCtx, customer, {
+    notify: false,
+  });
+  if (licenseError) return c.json({ error: 'sign_failed', detail: licenseError }, 500);
   const entitlement = await getEntitlement(c.env.DB, customer.id);
   return c.json({
     ok: true,
@@ -122,11 +114,18 @@ admin.get('/customer/:id', async (c) => {
   const entitlement = await getEntitlement(c.env.DB, id);
   const license = await getActiveLicenseForCustomer(c.env.DB, id);
   const downloads = await listDownloadsForCustomer(c.env.DB, id, 50);
+  const subscriptions = await c.env.DB.prepare(
+    'SELECT * FROM paddle_subscriptions WHERE customer_id = ?1 ORDER BY created_at DESC',
+  )
+    .bind(id)
+    .all();
   return c.json({
     customer,
     entitlement,
     effective: effectiveEntitlement(entitlement),
     license,
+    subscriptions: subscriptions.results ?? [],
+    hashdb_key: await getHashDbKey(c.env, id),
     downloads,
   });
 });
@@ -182,39 +181,15 @@ admin.post('/purchase/:id/status', async (c) => {
   await markPurchasePaid(c.env.DB, purchase, grant);
   if (!grant) return c.json({ ok: true, id, status: 'paid', entitlement: current });
 
-  let license: License | null = null;
-  if (customer.install_id) {
-    try {
-      license = await reissue(c.env, customer);
-    } catch (e) {
-      // The entitlement is recorded; the customer gets the file when they
-      // next register or an admin re-saves the entitlement.
-      console.error('license issue after purchase failed', e);
-    }
-  }
-  const effective = effectiveEntitlement(await getEntitlement(c.env.DB, customer.id));
-  c.executionCtx.waitUntil(
-    sendLicenseReadyEmail(c.env, customer, effective, license !== null).catch((err) =>
-      console.error('license email failed', err),
-    ),
-  );
+  const { license } = await applyEntitlementChange(c.env, c.executionCtx, customer, { notify: true });
   return c.json({
     ok: true,
     id,
     status: 'paid',
-    entitlement: effective,
+    entitlement: effectiveEntitlement(await getEntitlement(c.env.DB, customer.id)),
     license: license && licenseSummary(license),
   });
 });
-
-/** Issues a new license for the customer's registered installation from their current entitlement. */
-async function reissue(env: Env, customer: Customer): Promise<License> {
-  return issueLicense(env, {
-    customer,
-    installId: customer.install_id!,
-    entitlement: await getEntitlement(env.DB, customer.id),
-  });
-}
 
 function licenseSummary(l: License) {
   return {

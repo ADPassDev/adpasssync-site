@@ -22,6 +22,17 @@ export type Env = {
   LICENSE_PRIVATE_KEY?: string;
   LICENSE_PUBLIC_KEY?: string;
   RESEND_API_KEY?: string;
+
+  // Paddle Billing (see wrangler.jsonc).
+  PADDLE_ENV: string;
+  PADDLE_PRICE_ID: string;
+  PADDLE_CLIENT_TOKEN: string;
+  PADDLE_API_KEY?: string;
+  PADDLE_WEBHOOK_SECRET?: string;
+  // Overrides the API base URL that PADDLE_ENV implies. Local tests only.
+  PADDLE_API_BASE_URL?: string;
+  // The adpasssync-downloads Worker's D1, for full bloom filter keys.
+  HASHDB_LICENSES?: D1Database;
 };
 
 // Hono Variables — values stashed onto the request context by middleware.

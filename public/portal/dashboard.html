@@ -116,14 +116,58 @@
         </div>
       </section>
 
-      <section class="card">
-        <h2>Upgrade to Professional</h2>
-        <p class="muted" style="margin-bottom:1rem">
-          Free tier covers up to 50 AD users. Tell us how many users you need and we'll
-          follow up with a quote — payment integration is coming soon. Once it's paid, your
-          registered installation's license is updated automatically and we email you.
-        </p>
-        <form id="purchase-form">
+      <section class="card" id="plan-card">
+        <h2>Plan</h2>
+        <div id="plan-block"><p class="muted">Loading…</p></div>
+
+        <!-- No subscription: buy one through Paddle. -->
+        <form id="buy-form" class="hidden" style="margin-top:1.25rem">
+          <p class="muted" style="margin-bottom:1rem; line-height:1.5;">
+            Up to 50 active AD users are free. Past that, Professional is <strong>$5 per active AD
+            user per year for all of your users</strong>, billed annually and renewed automatically.
+            It includes the full breached-password database and priority support.
+          </p>
+          <div class="form-row">
+            <label for="buy-users">Active AD users to license</label>
+            <input id="buy-users" type="number" min="51" max="100000" value="100" required>
+          </div>
+          <p id="buy-total" class="muted" style="margin-bottom:1rem"></p>
+          <button type="submit" class="btn btn-primary" id="buy-btn">Upgrade</button>
+          <p class="muted" style="margin-top:0.75rem; font-size:0.8rem; line-height:1.5;">
+            Checkout is run by Paddle, our reseller and merchant of record, which also handles
+            sales tax, VAT and invoices.
+          </p>
+        </form>
+
+        <!-- Subscribed: change the user count, or manage billing in Paddle. -->
+        <div id="manage-block" class="hidden" style="margin-top:1.25rem">
+          <form id="users-form">
+            <div class="form-row">
+              <label for="users-new">Active AD users</label>
+              <input id="users-new" type="number" min="51" max="100000" required>
+            </div>
+            <button type="submit" class="btn btn-secondary" id="users-btn">Change users</button>
+          </form>
+          <div id="users-confirm" class="hidden" style="margin-top:1rem">
+            <p id="users-preview" style="margin-bottom:0.75rem; line-height:1.5;"></p>
+            <button type="button" class="btn btn-primary" id="users-confirm-btn">Confirm change</button>
+            <button type="button" class="btn btn-secondary" id="users-cancel-btn">Keep current plan</button>
+          </div>
+          <hr style="border:none;border-top:1px solid var(--border);margin:1.5rem 0">
+          <button type="button" class="btn btn-secondary" id="portal-btn">Manage billing &amp; invoices</button>
+          <p class="muted" style="margin-top:0.75rem; font-size:0.85rem; line-height:1.5;">
+            Update your payment method, download invoices or cancel in Paddle's customer portal.
+            Cancelling stops renewal; your paid term runs to its end.
+          </p>
+        </div>
+
+        <!-- Self-service purchasing not set up: request a quote instead. -->
+        <form id="purchase-form" class="hidden" style="margin-top:1.25rem">
+          <p class="muted" style="margin-bottom:1rem; line-height:1.5;">
+            Up to 50 active AD users are free. Past that, Professional is $5 per active AD user
+            per year for all of your users. Tell us how many you need and we'll follow up. Once
+            it's paid, your registered installation's license is updated and we email you.
+          </p>
           <div class="grid-2">
             <div class="form-row">
               <label for="seats">Total AD users</label>
@@ -132,7 +176,7 @@
             <div class="form-row">
               <label for="tier">Tier</label>
               <select id="tier" name="tier">
-                <option value="professional">Professional ($5/user/year over 50)</option>
+                <option value="professional">Professional ($5/user/year, all users)</option>
                 <option value="enterprise">Enterprise (contact us)</option>
               </select>
             </div>
@@ -143,6 +187,17 @@
           </div>
           <button type="submit" class="btn btn-primary" id="purchase-btn">Request quote</button>
         </form>
+      </section>
+
+      <section class="card hidden" id="hashdb-card">
+        <h2>Full breached-password database</h2>
+        <p class="muted" style="margin-bottom:1rem; line-height:1.5;">
+          Your plan includes the full database. Enter this key in ADPassSync's Compromised Database
+          tool (<strong>Edit license…</strong>), or save it as
+          <span class="mono">C:\ProgramData\ADPassSync\license.key</span> on each server that
+          downloads it. It works while your paid term lasts.
+        </p>
+        <p id="hashdb-key" class="mono" style="word-break:break-all"></p>
       </section>
     </div>
   </main>

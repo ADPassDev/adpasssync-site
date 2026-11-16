@@ -14,7 +14,9 @@ import { loadSession, requireAdmin, requireAuth } from './lib/auth';
 import authRoutes from './routes/auth';
 import portalRoutes from './routes/portal';
 import adminRoutes from './routes/admin';
+import billingRoutes from './routes/billing';
 import downloadsRoutes from './routes/downloads';
+import paddleRoutes from './routes/paddle';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -49,9 +51,14 @@ app.route('/api/auth', authRoutes);
 // fetching it can't authenticate without burning per-install API keys.
 app.route('/downloads', downloadsRoutes);
 
+// Paddle Billing notifications. No session: they're authenticated by their
+// Paddle-Signature header.
+app.route('/api/paddle', paddleRoutes);
+
 // Customer portal — must be signed in.
 const portalApp = new Hono<{ Bindings: Env; Variables: Variables }>();
 portalApp.use('*', requireAuth);
+portalApp.route('/billing', billingRoutes);
 portalApp.route('/', portalRoutes);
 app.route('/api/portal', portalApp);
 

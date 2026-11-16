@@ -15,6 +15,20 @@
   document.getElementById('purchase-form').addEventListener('submit', submitPurchase);
   document.getElementById('profile-form').addEventListener('submit', submitProfile);
   document.getElementById('register-form').addEventListener('submit', submitRegister);
+  document.getElementById('buy-form').addEventListener('submit', startCheckout);
+  document.getElementById('buy-users').addEventListener('input', showBuyTotal);
+  document.getElementById('users-form').addEventListener('submit', previewUsers);
+  document.getElementById('users-confirm-btn').addEventListener('click', confirmUsers);
+  document.getElementById('users-cancel-btn').addEventListener('click', function () {
+    document.getElementById('users-confirm').classList.add('hidden');
+  });
+  document.getElementById('portal-btn').addEventListener('click', openBillingPortal);
+
+  // Must match the Paddle price (PADDLE_PRICE_ID): $5 per user per year.
+  // Paddle's checkout shows the final amount, with any tax.
+  const UNIT_PRICE_USD = 5;
+  let billing = null;
+  let pendingUsers = null;
 
   init().catch(function (e) {
     console.error(e);
@@ -39,11 +53,229 @@
     }
     document.getElementById('user-email').textContent = me.customer.email;
 
-    const data = await fetchJson('/api/portal/dashboard');
-    renderDashboard(data);
+    const results = await Promise.all([fetchJson('/api/portal/dashboard'), fetchJson('/api/portal/billing')]);
+    renderDashboard(results[0]);
+    renderBilling(results[1]);
 
     loading.classList.add('hidden');
     content.classList.remove('hidden');
+  }
+
+  // ---- Plan and billing (Paddle) ----
+
+  function renderBilling(b) {
+    billing = b;
+    const sub = b.subscription;
+    const plan = document.getElementById('plan-block');
+    const show = function (id, on) { document.getElementById(id).classList.toggle('hidden', !on); };
+
+    const keyCard = document.getElementById('hashdb-card');
+    keyCard.classList.toggle('hidden', !b.hashdb_key);
+    document.getElementById('hashdb-key').textContent = b.hashdb_key || '';
+
+    let html;
+    if (sub && sub.live) {
+      const yearly = money(sub.quantity * UNIT_PRICE_USD);
+      html = '<p><span class="badge professional">professional</span> ' +
+        escapeText(String(sub.quantity)) + ' active AD users, ' + escapeText(yearly) + ' per year.</p>';
+      if (sub.status === 'past_due') {
+        html += '<div class="alert error" style="margin-top:1rem">Your last renewal payment didn\'t go through. ' +
+          'Update your payment method under Manage billing' +
+          (sub.paid_through ? '; your license runs until ' + escapeText(day(sub.paid_through)) : '') + '.</div>';
+      } else if (sub.cancel_at) {
+        html += '<p class="muted" style="margin-top:0.5rem">Cancelled: it won\'t renew. Your paid term runs until ' +
+          escapeText(day(sub.cancel_at)) + '.</p>';
+      } else if (sub.next_billed_at) {
+        html += '<p class="muted" style="margin-top:0.5rem">Renews automatically on ' + escapeText(day(sub.next_billed_at)) + '.</p>';
+      }
+    } else if (sub && sub.refunded_at) {
+      html = '<p>Free: up to 50 active AD users. Your Professional subscription was refunded on ' +
+        escapeText(day(sub.refunded_at)) + '.</p>';
+    } else if (sub && sub.paid_through && sub.paid_through * 1000 > Date.now()) {
+      html = '<p><span class="badge professional">professional</span> ' + escapeText(String(sub.quantity)) +
+        ' active AD users until ' + escapeText(day(sub.paid_through)) + '. Your subscription has ended and won\'t renew; ' +
+        'subscribing again starts a new yearly term today.</p>';
+    } else {
+      html = '<p>Free: up to 50 active AD users.</p>';
+    }
+    plan.innerHTML = html;
+
+    const live = !!(sub && sub.live);
+    show('buy-form', b.enabled && !live);
+    // Paddle can't restart a cancelled subscription: a returning customer
+    // starts a new one, and a new yearly term, from today.
+    document.getElementById('buy-btn').textContent = sub ? 'Subscribe again' : 'Upgrade';
+    show('manage-block', b.enabled && live);
+    show('purchase-form', !b.enabled);
+    if (live) document.getElementById('users-new').value = String(sub.quantity);
+    // A past_due subscription can't change users until the payment is sorted.
+    document.getElementById('users-form').classList.toggle('hidden', !(sub && sub.status === 'active'));
+    showBuyTotal();
+  }
+
+  function showBuyTotal() {
+    const n = Number(document.getElementById('buy-users').value);
+    document.getElementById('buy-total').textContent = Number.isInteger(n) && n >= 51
+      ? n + ' users × $' + UNIT_PRICE_USD + ' = ' + money(n * UNIT_PRICE_USD) + ' per year, before any tax.'
+      : 'Enter at least 51 users. Up to 50 are free.';
+  }
+
+  async function startCheckout(e) {
+    e.preventDefault();
+    const btn = document.getElementById('buy-btn');
+    btn.disabled = true;
+    btn.textContent = 'Opening checkout…';
+    try {
+      const res = await fetch('/api/portal/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users: Number(document.getElementById('buy-users').value) }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showAlert('error', data.error === 'invalid_users'
+          ? 'Enter a whole number of users from 51 to 100,000.'
+          : data.error === 'already_subscribed'
+            ? 'You already have a subscription. Change its users below instead.'
+            : 'Checkout is unavailable right now. Please try again shortly.');
+        return;
+      }
+      const paddle = await loadPaddle();
+      paddle.Checkout.open({ transactionId: data.transaction_id, settings: { displayMode: 'overlay', locale: 'en' } });
+    } catch (err) {
+      console.error(err);
+      showAlert('error', 'Could not open checkout. Please try again.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = billing && billing.subscription ? 'Subscribe again' : 'Upgrade';
+    }
+  }
+
+  // Paddle.js is loaded only when someone starts a checkout.
+  function loadPaddle() {
+    if (window.Paddle && window.Paddle.Initialized) return Promise.resolve(window.Paddle);
+    return new Promise(function (resolve, reject) {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.paddle.com/paddle/v2/paddle.js';
+      s.onload = function () {
+        if (billing.environment === 'sandbox') window.Paddle.Environment.set('sandbox');
+        window.Paddle.Initialize({ token: billing.client_token, eventCallback: onPaddleEvent });
+        resolve(window.Paddle);
+      };
+      s.onerror = function () { reject(new Error('Paddle.js failed to load')); };
+      document.head.appendChild(s);
+    });
+  }
+
+  function onPaddleEvent(ev) {
+    if (ev && ev.name === 'checkout.completed') {
+      showAlert('success', 'Payment received. Your license is being updated; this takes a few seconds.');
+      waitForBilling(function (b) { return !!(b.subscription && b.subscription.live); });
+    }
+  }
+
+  async function previewUsers(e) {
+    e.preventDefault();
+    const users = Number(document.getElementById('users-new').value);
+    const btn = document.getElementById('users-btn');
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/portal/billing/users/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users: users }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showAlert('error', data.error === 'no_change' ? 'That is your current number of users.'
+          : data.error === 'invalid_users' ? 'Enter a whole number of users from 51 to 100,000.'
+            : 'Could not price the change right now. Please try again shortly.');
+        return;
+      }
+      pendingUsers = users;
+      const now = data.charge_now !== null && data.currency_code
+        ? minorUnits(data.charge_now, data.currency_code) : null;
+      document.getElementById('users-preview').textContent =
+        'Change to ' + users + ' users (' + money(users * UNIT_PRICE_USD) + ' per year). ' +
+        (now !== null
+          ? (Number(data.charge_now) > 0 ? 'You will be charged ' + now + ' now for the rest of this year.'
+            : 'The unused part of this year is credited to your next bill.')
+          : 'The difference for the rest of this year is settled now.');
+      document.getElementById('users-confirm').classList.remove('hidden');
+    } catch (err) {
+      showAlert('error', 'Network error. Please try again.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function confirmUsers() {
+    if (pendingUsers === null) return;
+    const users = pendingUsers;
+    const btn = document.getElementById('users-confirm-btn');
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/portal/billing/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ users: users }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showAlert('error', 'Could not change your users (' + (data.error || res.status) + ').');
+        return;
+      }
+      document.getElementById('users-confirm').classList.add('hidden');
+      showAlert('success', 'Changing your plan to ' + users + ' users. Your license updates in a few seconds.');
+      waitForBilling(function (b) { return !!(b.subscription && b.subscription.quantity === users); });
+    } catch (err) {
+      showAlert('error', 'Network error. Please try again.');
+    } finally {
+      btn.disabled = false;
+      pendingUsers = null;
+    }
+  }
+
+  async function openBillingPortal() {
+    const btn = document.getElementById('portal-btn');
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/portal/billing/portal', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) { showAlert('error', 'Billing management is unavailable right now. Please try again shortly.'); return; }
+      location.href = data.url;
+    } catch (err) {
+      showAlert('error', 'Network error. Please try again.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // Paddle tells the site about payments by webhook, a moment after the
+  // checkout itself; poll until the change shows, then redraw everything.
+  async function waitForBilling(done) {
+    for (let i = 0; i < 20; i++) {
+      await new Promise(function (r) { setTimeout(r, 3000); });
+      const b = await fetchJson('/api/portal/billing');
+      if (done(b)) {
+        renderBilling(b);
+        renderDashboard(await fetchJson('/api/portal/dashboard'));
+        showAlert('success', 'Your plan is updated. Download your new license.json from the License card and upload it in ADPassSync.');
+        return;
+      }
+    }
+    showAlert('info', 'Your payment is still being processed. Refresh this page in a minute.');
+  }
+
+  function money(usd) {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(usd);
+  }
+
+  // Paddle amounts are strings in the currency's smallest unit.
+  function minorUnits(amount, currency) {
+    const digits = new Intl.NumberFormat(undefined, { style: 'currency', currency: currency }).resolvedOptions().maximumFractionDigits;
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency })
+      .format(Number(amount) / Math.pow(10, digits));
   }
 
   function renderDashboard(data) {
