@@ -37,17 +37,26 @@ Put the price ID (`pri_...`) in `PADDLE_PRICE_ID` in `wrangler.jsonc`.
 - Checkout > Checkout settings > Default payment link:
   `https://adpasssync.com/portal/dashboard`. Paddle needs one before the API
   can create transactions.
-- Live account only: Checkout > Website approval: add `adpasssync.com`.
+- Live account only: My account > Settings > Website approval: add
+  `adpasssync.com`.
   Paddle's review checks the site for pricing, terms, privacy and refund
   policies.
 
 ## 3. Keys
 
-- Developer tools > Authentication > Client-side tokens: create one and put it
-  in `PADDLE_CLIENT_TOKEN` in `wrangler.jsonc` (it's public by design).
-- Developer tools > Authentication > API keys: create one allowed to read and
-  write customers, write transactions, read and write subscriptions, and
-  write customer portal sessions. Store it as a secret:
+Both are under My account > Settings > Authentication (Developer tools >
+Authentication in Paddle's older dashboard layout). Sandbox client-side tokens
+start with `test_` and sandbox API keys contain `_sdbx`; if you see a Vendor
+ID and auth code instead, that's Paddle Classic, which this integration
+doesn't use.
+
+- Client-side tokens tab: create one and put it in `PADDLE_CLIENT_TOKEN` in
+  `wrangler.jsonc` (it's public by design).
+- API keys tab: create one allowed to read and write customers, write
+  transactions, read and write subscriptions, and write customer portal
+  sessions. If you give it an expiry date, note it: once the key expires,
+  checkout and Manage billing stop working until a new key is stored. Store it
+  as a secret:
 
   ```bash
   npx wrangler secret put PADDLE_API_KEY
@@ -55,7 +64,8 @@ Put the price ID (`pri_...`) in `PADDLE_PRICE_ID` in `wrangler.jsonc`.
 
 ## 4. Notifications
 
-Developer tools > Notifications > New destination:
+Notifications > New destination (Developer tools > Notifications in the older
+layout). Copy the destination's secret key when it's created:
 
 - URL: `https://adpasssync.com/api/paddle/webhook`
 - Events: `subscription.created`, `subscription.updated`,
