@@ -452,7 +452,9 @@
         /* MOBILE NAV */
         .nav-toggle { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; padding: 0.5rem; z-index: 101; -webkit-tap-highlight-color: transparent; }
         @media (max-width: 880px) {
-            .feature-row { grid-template-columns: 1fr; gap: 2rem; }
+            /* minmax(0, …) so one wide visual can't stretch the shared column
+               (and the copy above it) past the viewport. */
+            .feature-row { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
             .feature-row.reversed .feature-copy { order: 1; }
             .feature-row.reversed .feature-visual { order: 2; }
             .feature-row + .feature-row { margin-top: 4.5rem; }
@@ -463,9 +465,28 @@
             .nav-toggle { display: block; }
             .hero { padding: 8rem 1.5rem 4rem; }
             .arch-diagram { padding: 1.5rem; }
+            /* Flow diagrams: stack vertically with downward arrows instead of
+               scrolling sideways inside the card. */
+            .arch-flow, .pipeline {
+                flex-direction: column; flex-wrap: nowrap; align-items: stretch;
+                min-width: 0; max-width: 340px; margin: 0 auto;
+            }
+            .arch-arrow { align-self: center; line-height: 1; transform: rotate(90deg); }
+            .pipe-node { flex: none; }
+            .pipe-link {
+                display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+                column-gap: 0.6rem; padding: 0.5rem 0; min-width: 0;
+            }
+            .pipe-link .a { grid-column: 2; transform: rotate(90deg); }
+            .pipe-link .lbl { grid-column: 3; justify-self: start; margin-top: 0; font-size: 0.68rem; }
             .form-row { grid-template-columns: 1fr; }
             .pricing-grid { grid-template-columns: 1fr; }
             section { padding: 4.5rem 1.5rem; }
+            .footer-links { flex-wrap: wrap; row-gap: 0.5rem; }
+        }
+        @media (max-width: 480px) {
+            /* Two target chips side by side don't fit on phones. */
+            .ldap-targets { grid-template-columns: 1fr; }
         }
     </style>
 </head>
