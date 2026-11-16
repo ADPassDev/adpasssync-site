@@ -64,8 +64,10 @@ doesn't use.
 
 ## 4. Notifications
 
-Notifications > New destination (Developer tools > Notifications in the older
-layout). Copy the destination's secret key when it's created:
+Find Notifications (Developer tools > Notifications in Paddle's older layout;
+in the newer one it isn't confirmed here, so check the main menu and My
+account > Settings), then New destination. Copy the destination's secret key
+when it's created:
 
 - URL: `https://adpasssync.com/api/paddle/webhook`
 - Events: `subscription.created`, `subscription.updated`,
