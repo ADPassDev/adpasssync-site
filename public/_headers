@@ -3,7 +3,7 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; form-action 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; form-action 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'
 
 # Portal pages must never be cached by intermediaries — they're per-user.
 /portal/*
@@ -14,4 +14,8 @@
 # the "!" line drops the site-wide one so the two don't intersect.
 /portal/dashboard*
   ! Content-Security-Policy
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.paddle.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.paddle.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://*.paddle.com; frame-src https://*.paddle.com; connect-src 'self' https://*.paddle.com; form-action 'self'; frame-ancestors 'none'; base-uri 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://cdn.paddle.com; style-src 'self' 'unsafe-inline' https://cdn.paddle.com; font-src 'self'; img-src 'self' data: https://*.paddle.com; frame-src https://*.paddle.com; connect-src 'self' https://*.paddle.com; form-action 'self'; frame-ancestors 'none'; base-uri 'self'
+
+# Self-hosted Inter font files (see /fonts/inter.css).
+/fonts/*
+  Cache-Control: public, max-age=2592000
