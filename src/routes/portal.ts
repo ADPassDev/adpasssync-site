@@ -2,7 +2,7 @@
 // (mounted under requireAuth in src/index.ts).
 
 import { Hono } from 'hono';
-import type { Env, Variables } from '../types';
+import type { Customer, Entitlement, Env, License, Variables } from '../types';
 import {
   loadLatestRelease,
   openLatestReleasePackage,
@@ -14,30 +14,39 @@ import {
 import {
   findCustomerById,
   getActiveLicenseForCustomer,
+  getEntitlement,
   listDownloadsForCustomer,
   markLicenseDownloaded,
   recordDownload,
   recordPurchaseIntent,
-  setCustomerInstallId,
+  registerInstallId,
   updateCustomerProfile,
 } from '../lib/db';
-import { uuidv4 } from '../lib/crypto';
-import { freeTierDefaults, issueLicense } from '../lib/license';
+import {
+  FREE_TIER_MAX_USERS,
+  effectiveEntitlement,
+  issueLicense,
+  licenseCustomerName,
+  normalizeInstallId,
+} from '../lib/license';
 import { getClientIp } from '../lib/auth';
 import { sendPurchaseAlertEmail } from '../lib/email';
 
 const portal = new Hono<{ Bindings: Env; Variables: Variables }>();
 
-// Files the download adds to the release package.
-const LICENSE_FILE = 'license-key.txt';
+// Files the download adds to the release package. The product's License page
+// asks for "the signed license.json", so that's the name.
+const LICENSE_FILE = 'license.json';
 const README_FILE = 'README.txt';
 
 // GET /api/portal/dashboard
-// Top-level summary: customer info, license, download history, and the
+// Top-level summary: customer info, what they're licensed for, their
+// registered installation and its license file, download history, and the
 // release the download button currently serves.
 portal.get('/dashboard', async (c) => {
   const customer = c.get('customer')!;
-  const license = await getActiveLicenseForCustomer(c.env.DB, customer.id);
+  const entitlement = await getEntitlement(c.env.DB, customer.id);
+  const license = await currentLicense(c.env.DB, customer);
   const history = await listDownloadsForCustomer(c.env.DB, customer.id, 10);
   const release = await latestReleaseSummary(c.env);
   return c.json({
@@ -49,16 +58,9 @@ portal.get('/dashboard', async (c) => {
       company: customer.company,
       install_id: customer.install_id,
     },
-    license: license
-      ? {
-          id: license.id,
-          tier: license.tier,
-          max_users: license.max_users,
-          issued_at: license.issued_at,
-          expires_at: license.expires_at,
-          downloaded_at: license.downloaded_at,
-        }
-      : null,
+    entitlement: entitlementView(entitlement),
+    license: license && licenseView(license),
+    license_customer_name: licenseCustomerName(customer),
     downloads: history.map((d) => ({
       downloaded_at: d.downloaded_at,
       version: d.version,
@@ -68,21 +70,82 @@ portal.get('/dashboard', async (c) => {
 });
 
 // GET /api/portal/license
-// License status only (lighter payload than /dashboard).
+// Licensing status only (lighter payload than /dashboard).
 portal.get('/license', async (c) => {
   const customer = c.get('customer')!;
-  const license = await getActiveLicenseForCustomer(c.env.DB, customer.id);
-  if (!license) return c.json({ has_license: false });
+  const license = await currentLicense(c.env.DB, customer);
   return c.json({
-    has_license: true,
-    license: {
-      id: license.id,
-      install_id: license.install_id,
-      tier: license.tier,
-      max_users: license.max_users,
-      issued_at: license.issued_at,
-      expires_at: license.expires_at,
-      downloaded_at: license.downloaded_at,
+    install_id: customer.install_id,
+    entitlement: entitlementView(await getEntitlement(c.env.DB, customer.id)),
+    license: license && licenseView(license),
+  });
+});
+
+// POST /api/portal/installation   { install_id }
+// Registers the Install ID that ADPassSync generated on first run (shown on
+// its License page, which links here with it filled in) and issues a license
+// file for it. One installation per account: a different one can only be
+// registered after an admin resets the current one, so a purchase can't be
+// spread across sites. Re-registering the same ID is a no-op that makes sure
+// a current license exists.
+portal.post('/installation', async (c) => {
+  const customer = c.get('customer')!;
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_json' }, 400);
+  }
+  const installId = normalizeInstallId((body as { install_id?: unknown } | null)?.install_id);
+  if (!installId) return c.json({ error: 'invalid_install_id' }, 400);
+
+  const result = await registerInstallId(c.env.DB, customer.id, installId);
+  if (result.status === 'taken') {
+    return c.json({ error: 'install_id_registered_elsewhere' }, 409);
+  }
+  if (result.status === 'account_has_other') {
+    return c.json({ error: 'account_has_installation', install_id: result.install_id }, 409);
+  }
+  customer.install_id = installId;
+
+  let license = await currentLicense(c.env.DB, customer);
+  if (!license) {
+    try {
+      license = await issueLicense(c.env, {
+        customer,
+        installId,
+        entitlement: await getEntitlement(c.env.DB, customer.id),
+      });
+    } catch (e) {
+      console.error('issueLicense failed', e);
+      return c.json({ error: 'license_unavailable' }, 500);
+    }
+  }
+  return c.json({
+    ok: true,
+    registered: result.status === 'registered',
+    install_id: installId,
+    license: licenseView(license),
+  });
+});
+
+// GET /api/portal/license.json
+// The current license file for the registered installation, as a download.
+portal.get('/license.json', async (c) => {
+  const customer = c.get('customer')!;
+  const license = await currentLicense(c.env.DB, customer);
+  if (!license) return c.json({ error: 'no_license' }, 404);
+  c.executionCtx.waitUntil(
+    markLicenseDownloaded(c.env.DB, license.id).catch((err) =>
+      console.error('markLicenseDownloaded failed', err),
+    ),
+  );
+  return new Response(license.license_json, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${LICENSE_FILE}"`,
+      'Cache-Control': 'no-store',
     },
   });
 });
@@ -137,18 +200,16 @@ function normalizeProfileField(v: unknown): string | undefined | 'invalid' {
 
 // GET /api/portal/download
 // Streams the current release package (the zip that latest.json names in
-// the releases bucket: both MSIs, both guides, SHA256SUMS.txt) with the
-// customer's license-key.txt and a README.txt added.
-//   - Fails with 503, before touching the account, if the release can't be read.
-//   - On first call, allocates a UUID install_id for the customer.
-//   - On first call without a license, auto-issues a Free-tier license.
-//   - Records the download, with the release version, for audit.
+// the releases bucket: both MSIs, both guides, SHA256SUMS.txt) with a
+// README.txt added, plus license.json if the customer has registered an
+// installation. Fails with 503 if the release can't be read. Records the
+// download, with the release version, for audit.
 portal.get('/download', async (c) => {
   const customer = c.get('customer')!;
   const env = c.env;
 
-  // 1. Open the release package first, so a missing or broken release never
-  //    allocates an install ID or issues a license for a download that fails.
+  // 1. Open the release package first, so a broken release fails before
+  //    anything is recorded.
   let pkg: ReleasePackage;
   try {
     pkg = await openLatestReleasePackage(env);
@@ -158,39 +219,17 @@ portal.get('/download', async (c) => {
   }
   const version = pkg.release.version;
 
-  // 2. Ensure install_id (one-shot allocation, persisted).
-  let installId = customer.install_id;
-  if (!installId) {
-    installId = uuidv4();
-    await setCustomerInstallId(env.DB, customer.id, installId);
-    customer.install_id = installId;
-  }
+  // 2. Nothing is issued here: the product generates its Install ID when it
+  //    is installed, and the license follows from registering that ID. A
+  //    customer who has already registered gets their current license file
+  //    in the ZIP too, which saves a step when upgrading.
+  const license = await currentLicense(env.DB, customer);
 
-  // 3. Ensure an active license. Default to Free tier if none.
-  let license = await getActiveLicenseForCustomer(env.DB, customer.id);
-  if (!license) {
-    const def = freeTierDefaults();
-    try {
-      license = await issueLicense(env, {
-        customer,
-        installId,
-        tier: def.tier,
-        maxUsers: def.maxUsers,
-        expiresAt: def.expiresAt,
-      });
-    } catch (e) {
-      console.error('issueLicense failed', e);
-      return c.json(
-        { error: 'license_unavailable', detail: String(e) },
-        500,
-      );
-    }
-  }
-
-  // 4. Stream the package with the license and README appended. The
+  // 3. Stream the package with the README (and license) appended. The
   //    package's own entries pass through byte-for-byte.
   const added = new Set([LICENSE_FILE, README_FILE].map((n) => n.toLowerCase()));
   const releaseFiles = pkg.records.map((r) => r.name).filter((n) => !added.has(n.toLowerCase()));
+  const readme = readmeText({ customer, license, release: pkg.release, releaseFiles });
   let body: ReadableStream<Uint8Array>;
   try {
     body = await streamReleasePackage(
@@ -198,11 +237,8 @@ portal.get('/download', async (c) => {
       c.executionCtx,
       pkg,
       [
-        { name: LICENSE_FILE, data: license.license_json },
-        {
-          name: README_FILE,
-          data: readmeText({ email: customer.email, installId, release: pkg.release, releaseFiles }),
-        },
+        ...(license ? [{ name: LICENSE_FILE, data: license.license_json }] : []),
+        { name: README_FILE, data: readme },
       ],
       new Date(),
     );
@@ -211,13 +247,13 @@ portal.get('/download', async (c) => {
     return c.json({ error: 'release_unavailable' }, 503);
   }
 
-  // 5. Audit + bookkeeping. Don't block the response on the writes.
+  // 4. Audit + bookkeeping. Don't block the response on the writes.
   c.executionCtx.waitUntil(
     Promise.all([
-      markLicenseDownloaded(env.DB, license.id),
+      license ? markLicenseDownloaded(env.DB, license.id) : null,
       recordDownload(env.DB, {
         customerId: customer.id,
-        licenseId: license.id,
+        licenseId: license?.id ?? null,
         ipAddress: getClientIp(c),
         userAgent: c.req.header('User-Agent') ?? null,
         version,
@@ -294,12 +330,44 @@ async function latestReleaseSummary(
   }
 }
 
+/** The customer's current license file, if it is for their registered installation. */
+async function currentLicense(db: D1Database, customer: Customer): Promise<License | null> {
+  if (!customer.install_id) return null;
+  const license = await getActiveLicenseForCustomer(db, customer.id);
+  return license && license.install_id === customer.install_id ? license : null;
+}
+
+function licenseView(l: License) {
+  return {
+    id: l.id,
+    install_id: l.install_id,
+    tier: l.tier,
+    max_users: l.max_users,
+    issued_at: l.issued_at,
+    expires_at: l.expires_at,
+    downloaded_at: l.downloaded_at,
+  };
+}
+
+/** The entitlement in force, plus the paid term that ended, if that's why it's free. */
+function entitlementView(e: Entitlement | null) {
+  const eff = effectiveEntitlement(e);
+  return {
+    ...eff,
+    lapsed:
+      e && e.tier !== 'free' && eff.tier === 'free'
+        ? { tier: e.tier, max_users: e.max_users, expired_at: e.expires_at }
+        : null,
+  };
+}
+
 function readmeText(args: {
-  email: string;
-  installId: string;
+  customer: Customer;
+  license: License | null;
   release: Release;
   releaseFiles: string[];
 }): string {
+  const { customer, license } = args;
   const title = `ADPassSync ${args.release.version}`;
   const released = args.release.released_at?.slice(0, 10) ?? null;
   const hasSums = args.releaseFiles.includes('SHA256SUMS.txt');
@@ -307,9 +375,8 @@ function readmeText(args: {
     title,
     '='.repeat(title.length),
     '',
-    `Account:    ${args.email}`,
-    `Install ID: ${args.installId}`,
-    released ? `Released:   ${released}` : null,
+    `Account:  ${customer.email}`,
+    released ? `Released: ${released}` : null,
     '',
     'Contents',
     '--------',
@@ -317,15 +384,20 @@ function readmeText(args: {
     '',
     ...args.releaseFiles.map((n) => `  ${n}`),
     '',
-    'plus two files added for your account:',
-    '',
-    `  ${LICENSE_FILE.padEnd(15)}  your signed license, bound to the Install ID above`,
-    `  ${README_FILE.padEnd(15)}  this file`,
+    ...(license
+      ? [
+          'plus two files for your account:',
+          '',
+          `  ${LICENSE_FILE.padEnd(12)}  your license: ${describeLicense(license)}`,
+          `  ${''.padEnd(12)}  for the installation with Install ID ${license.install_id}`,
+          `  ${README_FILE.padEnd(12)}  this file`,
+        ]
+      : ['plus this README.txt.']),
     ...(hasSums
       ? [
           '',
-          'SHA256SUMS.txt covers the release files, not the two added ones. Verify',
-          'with "sha256sum -c SHA256SUMS.txt", or compare each line against',
+          'SHA256SUMS.txt covers the release files only. Verify with',
+          '"sha256sum -c SHA256SUMS.txt", or compare each line against',
           'Get-FileHash in PowerShell.',
         ]
       : []),
@@ -335,11 +407,35 @@ function readmeText(args: {
     'Start with the Quick Start Guide. The Administrator Guide covers',
     'deployment, configuration and licensing in full.',
     '',
+    'Licensing',
+    '---------',
+    `Up to ${FREE_TIER_MAX_USERS} Active Directory users are free and need no license file.`,
+    '',
+    ...(license
+      ? [
+          `Upload ${LICENSE_FILE} on the License page of the ADPassSync admin console.`,
+          'It only works on the installation with the Install ID above.',
+        ]
+      : [
+          'To license more users, open the License page in the ADPassSync admin',
+          'console and click "Get a license". That opens your portal with the',
+          "installation's Install ID filled in (or enter the Install ID shown",
+          `there on your portal dashboard). Register it, then upload the ${LICENSE_FILE}`,
+          'you get on the same License page.',
+        ]),
+    '',
     'Need help? https://adpasssync.com/#contact',
     '',
   ]
     .filter((s) => s !== null)
     .join('\r\n');
+}
+
+function describeLicense(l: License): string {
+  const tier = l.tier.charAt(0).toUpperCase() + l.tier.slice(1);
+  const users = l.max_users === 0 ? 'unlimited AD users' : `${l.max_users} AD users`;
+  const until = l.expires_at ? `, until ${new Date(l.expires_at * 1000).toISOString().slice(0, 10)}` : '';
+  return `${tier}, ${users}${until},`;
 }
 
 export default portal;

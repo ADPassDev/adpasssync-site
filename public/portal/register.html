@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Get your license — ADPassSync Portal</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/portal.css">
+</head>
+<body>
+  <!-- Opened from the License page of the ADPassSync admin console:
+       /portal/register?install_id=<the installation's Install ID> -->
+  <div class="login-shell">
+    <div class="login-card">
+      <a href="/" class="nav-logo" style="margin-bottom:1.5rem">
+        <img class="logo-icon" src="../brand/logo.png" alt="">
+        ADPassSync
+      </a>
+      <h1>Get your license</h1>
+      <p class="subtitle">
+        Register this ADPassSync installation to your account to get its license file.
+      </p>
+
+      <div id="alert" class="alert hidden"></div>
+
+      <p id="loading" class="muted">Checking your account…</p>
+
+      <div id="confirm" class="hidden">
+        <dl class="kv" style="margin-bottom:1.25rem">
+          <dt>Install ID</dt><dd id="c-install" class="mono"></dd>
+          <dt>Account</dt><dd id="c-email"></dd>
+          <dt>Licensed to</dt><dd id="c-name"></dd>
+          <dt>License</dt><dd id="c-entitlement"></dd>
+        </dl>
+        <p class="muted" style="margin-bottom:1.25rem; line-height:1.5;">
+          An account licenses one installation. The name above appears on the license; to
+          change it, update your profile on the <a href="dashboard.html">dashboard</a> first.
+        </p>
+        <button id="register-btn" type="button" class="btn btn-primary" style="width:100%">
+          Register and get license
+        </button>
+      </div>
+
+      <div id="done" class="hidden">
+        <p id="done-summary" style="margin-bottom:1.25rem; line-height:1.5;"></p>
+        <a class="btn btn-primary" style="width:100%; text-align:center" href="/api/portal/license.json">
+          Download license.json
+        </a>
+        <ol class="muted" style="margin:1.25rem 0 0 1.1rem; line-height:1.7;">
+          <li>In the ADPassSync admin console, open <strong>License</strong>.</li>
+          <li>Under <strong>Upload License</strong>, choose <span class="mono">license.json</span>
+            and click <strong>Upload License</strong>.</li>
+        </ol>
+      </div>
+
+      <p class="muted" style="margin-top:1.5rem; text-align:center;">
+        <a href="dashboard.html">Go to your dashboard</a>
+      </p>
+    </div>
+  </div>
+  <script src="js/register.js"></script>
+</body>
+</html>

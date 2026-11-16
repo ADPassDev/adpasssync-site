@@ -37,6 +37,8 @@ export type Customer = {
   email: string;
   name: string | null;
   company: string | null;
+  // The Install ID ADPassSync generated on first run, registered by the
+  // customer in the portal. One installation per account.
   install_id: string | null;
   created_at: number;
   updated_at: number;
@@ -87,23 +89,14 @@ export type Purchase = {
   updated_at: number;
 };
 
-// The signed license payload that ships inside license-key.txt.
-export type LicensePayload = {
-  v: 1;
-  license_id: string;
-  install_id: string;
+// What a customer is licensed for, whatever installation it ends up on.
+// No row means the free tier. License files (the licenses table) are issued
+// from this for the customer's registered installation.
+export type Entitlement = {
   customer_id: string;
-  email: string;
-  company: string | null;
   tier: LicenseTier;
   max_users: number;
-  issued_at: number; // unix seconds
-  expires_at: number | null;
-};
-
-export type SignedLicense = {
-  payload: LicensePayload;
-  signature: string; // base64
-  alg: 'RS256';
-  kid: string; // "v1" — key id, lets us rotate later
+  expires_at: number | null; // unix seconds; null = no expiry
+  source: string | null; // e.g. "purchase:<id>", "admin:<email>"
+  updated_at: number;
 };

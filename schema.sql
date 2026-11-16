@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS customers (
   email        TEXT NOT NULL UNIQUE COLLATE NOCASE,
   name         TEXT,
   company      TEXT,
-  install_id   TEXT UNIQUE,                               -- uuid v4, set on first download
+  install_id   TEXT UNIQUE,                               -- the product's Install ID, registered by the customer (one per account)
   created_at   INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at   INTEGER NOT NULL DEFAULT (unixepoch())
 );
@@ -42,7 +42,21 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_customer_id ON sessions(customer_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at  ON sessions(expires_at);
 
--- Issued license files. license_json holds the signed payload + signature.
+-- What each customer is licensed for, independent of installation. No row =
+-- free tier (50 AD users, built into the product). Set when a purchase is
+-- marked paid, or by an admin.
+CREATE TABLE IF NOT EXISTS entitlements (
+  customer_id  TEXT PRIMARY KEY REFERENCES customers(id) ON DELETE CASCADE,
+  tier         TEXT NOT NULL CHECK (tier IN ('free','professional','enterprise')),
+  max_users    INTEGER NOT NULL,                          -- total AD users; 0 = unlimited (paid only)
+  expires_at   INTEGER,                                   -- NULL = no expiry
+  source       TEXT,                                      -- purchase:<id>, admin:<email>, migrated:<license id>
+  updated_at   INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+-- Issued license files, in the product's format (pkg/license LicenseFile),
+-- bound to the customer's registered install_id. The newest unrevoked row is
+-- the customer's current license; issuing a new one revokes the others.
 CREATE TABLE IF NOT EXISTS licenses (
   id            TEXT PRIMARY KEY,                         -- uuid v4
   customer_id   TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,

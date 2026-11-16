@@ -27,7 +27,7 @@
 
   <main>
     <h1>Admin</h1>
-    <p class="subtitle">Customer accounts and license issuance.</p>
+    <p class="subtitle">Customer accounts, entitlements and licenses.</p>
 
     <div id="alert" class="alert hidden"></div>
 
@@ -53,9 +53,11 @@
     </section>
 
     <section class="card">
-      <h2>Issue license</h2>
+      <h2>Set entitlement</h2>
       <p class="muted" style="margin-bottom:1rem">
-        Sign a license file for a customer. If they have no install ID yet, one is allocated.
+        What the customer is licensed for. If they have registered an installation, a new
+        license file for it is issued straight away; otherwise it is issued when they register.
+        Marking a quote request paid does this automatically. Max AD users 0 = unlimited (paid tiers).
       </p>
       <form id="issue-form">
         <div class="form-row">
@@ -73,14 +75,14 @@
           </div>
           <div class="form-row">
             <label for="i-max">Max AD users</label>
-            <input id="i-max" type="number" min="1" max="1000000" value="100" required>
+            <input id="i-max" type="number" min="0" max="1000000" value="100" required>
           </div>
         </div>
         <div class="form-row">
           <label for="i-exp">Expires (YYYY-MM-DD; leave blank for perpetual)</label>
           <input id="i-exp" type="text" placeholder="2027-04-28">
         </div>
-        <button type="submit" class="btn btn-primary" id="issue-btn">Generate license</button>
+        <button type="submit" class="btn btn-primary" id="issue-btn">Save entitlement</button>
       </form>
     </section>
 

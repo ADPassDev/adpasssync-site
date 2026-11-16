@@ -48,9 +48,26 @@
       <div class="grid-2">
         <section class="card">
           <h2>License</h2>
-          <div id="license-block">
-            <p class="muted">No license issued yet. Download the installer to provision your free-tier license automatically.</p>
+          <div id="license-block"></div>
+          <div id="license-file-block" class="hidden" style="margin-top:1.25rem">
+            <a class="btn btn-primary" href="/api/portal/license.json">Download license.json</a>
+            <p class="muted" style="margin-top:0.75rem; line-height:1.5;">
+              Upload it on the <strong>License</strong> page of the ADPassSync admin console.
+            </p>
           </div>
+          <form id="register-form" class="hidden" style="margin-top:1.25rem">
+            <p id="register-help" class="muted" style="margin-bottom:0.75rem; line-height:1.5;">
+              Up to 50 AD users need no license file. To license more, register your installation:
+              in the ADPassSync admin console open <strong>License</strong> and click
+              <strong>Get a license</strong>, or paste the Install ID shown there.
+            </p>
+            <div class="form-row">
+              <label for="r-install">Install ID</label>
+              <input id="r-install" type="text" class="mono" autocomplete="off" spellcheck="false"
+                     placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required>
+            </div>
+            <button type="submit" class="btn btn-secondary" id="register-btn">Register installation</button>
+          </form>
         </section>
 
         <section class="card" id="profile-card">
@@ -73,7 +90,7 @@
           <dl class="kv">
             <dt>Email</dt><dd id="acct-email" class="mono"></dd>
             <dt>Customer ID</dt><dd id="acct-id" class="mono"></dd>
-            <dt>Install ID</dt><dd id="acct-install" class="mono"><span class="muted">— assigned on first download —</span></dd>
+            <dt>Install ID</dt><dd id="acct-install" class="mono"><span class="muted">— not registered —</span></dd>
           </dl>
         </section>
       </div>
@@ -82,8 +99,9 @@
         <h2>Download ADPassSync</h2>
         <p class="muted" style="margin-bottom:1rem">
           One ZIP with the complete release: the server and credential provider installers,
-          the Administrator and Quick Start Guides, and <span class="mono">SHA256SUMS.txt</span>,
-          plus a signed <span class="mono">license-key.txt</span> bound to your install ID.
+          the Administrator and Quick Start Guides, and <span class="mono">SHA256SUMS.txt</span>.
+          Once you've registered your installation, its <span class="mono">license.json</span>
+          is included too.
         </p>
         <p id="release-line" class="mono hidden" style="margin-bottom:1rem"></p>
         <a id="download-btn" class="btn btn-primary" href="/api/portal/download">
@@ -101,8 +119,9 @@
       <section class="card">
         <h2>Upgrade to Professional</h2>
         <p class="muted" style="margin-bottom:1rem">
-          Free tier covers up to 50 AD users. Tell us how many seats you need and we'll
-          follow up with a quote — payment integration is coming soon.
+          Free tier covers up to 50 AD users. Tell us how many users you need and we'll
+          follow up with a quote — payment integration is coming soon. Once it's paid, your
+          registered installation's license is updated automatically and we email you.
         </p>
         <form id="purchase-form">
           <div class="grid-2">

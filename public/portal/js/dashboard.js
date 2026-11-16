@@ -14,6 +14,7 @@
   document.getElementById('logout-btn').addEventListener('click', logout);
   document.getElementById('purchase-form').addEventListener('submit', submitPurchase);
   document.getElementById('profile-form').addEventListener('submit', submitProfile);
+  document.getElementById('register-form').addEventListener('submit', submitRegister);
 
   init().catch(function (e) {
     console.error(e);
@@ -55,25 +56,7 @@
     if (!c.name && !c.company) onboard.classList.remove('hidden');
     else onboard.classList.add('hidden');
 
-    const lic = data.license;
-    const licBlock = document.getElementById('license-block');
-    if (lic) {
-      const issued = new Date(lic.issued_at * 1000).toLocaleDateString();
-      const expires = lic.expires_at
-        ? new Date(lic.expires_at * 1000).toLocaleDateString()
-        : 'Perpetual';
-      const downloaded = lic.downloaded_at
-        ? new Date(lic.downloaded_at * 1000).toLocaleString()
-        : 'Not yet downloaded';
-      licBlock.innerHTML =
-        '<dl class="kv">' +
-          '<dt>Tier</dt><dd><span class="badge ' + escapeAttr(lic.tier) + '">' + escapeText(lic.tier) + '</span></dd>' +
-          '<dt>Max AD users</dt><dd>' + escapeText(String(lic.max_users)) + '</dd>' +
-          '<dt>Issued</dt><dd>' + escapeText(issued) + '</dd>' +
-          '<dt>Expires</dt><dd>' + escapeText(expires) + '</dd>' +
-          '<dt>Last downloaded</dt><dd>' + escapeText(downloaded) + '</dd>' +
-        '</dl>';
-    }
+    renderLicense(data);
 
     // The release the download button serves right now (null if the
     // release manifest couldn't be read; the line then stays hidden).
@@ -102,6 +85,82 @@
       html += '</tbody></table>';
       dlBlock.innerHTML = html;
     }
+  }
+
+  // What the customer is licensed for, their registered installation, and
+  // either its license file or the form to register one.
+  function renderLicense(data) {
+    const ent = data.entitlement;
+    const lic = data.license;
+    const installId = data.customer.install_id;
+    let html = '';
+    if (ent.lapsed) {
+      html += '<div class="alert info">Your ' + escapeText(ent.lapsed.tier) + ' term ended on ' +
+        escapeText(day(ent.lapsed.expired_at)) + '. You are on the free tier until it is renewed.</div>';
+    }
+    html += '<dl class="kv">' +
+      '<dt>Tier</dt><dd><span class="badge ' + escapeAttr(ent.tier) + '">' + escapeText(ent.tier) + '</span></dd>' +
+      '<dt>Licensed AD users</dt><dd>' + (ent.max_users === 0 ? 'Unlimited' : escapeText(String(ent.max_users))) + '</dd>' +
+      '<dt>Expires</dt><dd>' + (ent.expires_at ? escapeText(day(ent.expires_at)) : 'Never') + '</dd>' +
+      '<dt>Installation</dt><dd class="mono">' +
+        (installId ? escapeText(installId) : '<span class="muted">Not registered</span>') + '</dd>' +
+      (lic
+        ? '<dt>License file</dt><dd style="word-break:normal">Issued ' + escapeText(day(lic.issued_at)) +
+          (lic.downloaded_at ? ', downloaded ' + escapeText(day(lic.downloaded_at)) : ', not downloaded yet') + '</dd>'
+        : '') +
+      '</dl>';
+    document.getElementById('license-block').innerHTML = html;
+
+    document.getElementById('license-file-block').classList.toggle('hidden', !lic);
+    // Registered but no current file (e.g. a paid term ended): re-submitting
+    // the same Install ID issues one from the current entitlement.
+    const form = document.getElementById('register-form');
+    const input = document.getElementById('r-install');
+    form.classList.toggle('hidden', !!lic);
+    input.value = installId || '';
+    input.readOnly = !!installId;
+    document.getElementById('register-help').classList.toggle('hidden', !!installId);
+    document.getElementById('register-btn').textContent = installId ? 'Issue license file' : 'Register installation';
+  }
+
+  async function submitRegister(e) {
+    e.preventDefault();
+    const btn = document.getElementById('register-btn');
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Registering…';
+    try {
+      const res = await fetch('/api/portal/installation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ install_id: document.getElementById('r-install').value }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showAlert('success', 'License file ready. Download license.json and upload it on the License page of the ADPassSync admin console.');
+        const fresh = await fetchJson('/api/portal/dashboard');
+        renderLicense(fresh);
+        renderCustomer(fresh.customer);
+      } else if (data.error === 'invalid_install_id') {
+        showAlert('error', 'That is not an Install ID. Copy it from the License page in the ADPassSync admin console.');
+      } else if (data.error === 'install_id_registered_elsewhere') {
+        showAlert('error', 'That installation is registered to a different account.');
+      } else if (data.error === 'account_has_installation') {
+        showAlert('error', 'Your account already licenses another installation (' + data.install_id +
+          '). If you have moved ADPassSync to a new server, contact us and we will move your license.');
+      } else {
+        showAlert('error', 'Could not register the installation (' + (data.error || res.status) + ').');
+      }
+    } catch (err) {
+      showAlert('error', 'Network error. Please try again.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  }
+
+  function day(unixSeconds) {
+    return new Date(unixSeconds * 1000).toLocaleDateString();
   }
 
   async function submitPurchase(e) {
@@ -141,7 +200,7 @@
       document.getElementById('acct-install').textContent = c.install_id;
     } else {
       document.getElementById('acct-install').innerHTML =
-        '<span class="muted">— assigned on first download —</span>';
+        '<span class="muted">— not registered —</span>';
     }
     // Pre-fill the profile form with whatever's already saved.
     document.getElementById('p-name').value = c.name || '';

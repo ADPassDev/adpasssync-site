@@ -1,5 +1,7 @@
-// Admin page. Lists customers, lets an operator issue licenses, and shows
-// a detail view (license + downloads) for any selected customer.
+// Admin page. Lists quote requests and customers, sets what a customer is
+// licensed for (which issues a license for their registered installation),
+// and shows a detail view (entitlement, installation, license, downloads)
+// with a reset for moving a customer to a new installation.
 (function () {
   'use strict';
 
@@ -8,7 +10,7 @@
 
   const alertBox = document.getElementById('alert');
   document.getElementById('logout-btn').addEventListener('click', logout);
-  document.getElementById('issue-form').addEventListener('submit', issueLicense);
+  document.getElementById('issue-form').addEventListener('submit', setEntitlement);
   document.getElementById('purchase-filter').addEventListener('change', refreshPurchases);
 
   init().catch(function (e) {
@@ -94,7 +96,14 @@
       if (!res.ok) {
         showAlert('error', 'Status update failed: ' + (data.error || res.status));
       } else {
-        showAlert('success', 'Marked ' + status + '.');
+        let msg = 'Marked ' + status + '.';
+        if (status === 'paid' && data.entitlement) {
+          msg += ' Entitlement: ' + describeEntitlement(data.entitlement) + '. ' +
+            (data.license
+              ? 'License issued for installation ' + data.license.install_id + '; the customer was emailed.'
+              : 'The customer has no registered installation yet; they get the license when they register one, and were emailed.');
+        }
+        showAlert('success', msg);
         await refreshPurchases();
       }
     } catch (err) {
@@ -136,30 +145,50 @@
     const data = await fetchJson('/api/admin/customer/' + encodeURIComponent(id));
     const card = document.getElementById('detail-card');
     const block = document.getElementById('detail-block');
-    document.getElementById('detail-title').textContent = 'Customer: ' + data.customer.email;
+    const c = data.customer;
+    document.getElementById('detail-title').textContent = 'Customer: ' + c.email;
+    // Prefill the entitlement form for this customer.
+    document.getElementById('cust-id').value = c.id;
 
     let html = '<dl class="kv">' +
-      '<dt>Customer ID</dt><dd class="mono">' + escapeText(data.customer.id) + '</dd>' +
-      '<dt>Email</dt><dd>' + escapeText(data.customer.email) + '</dd>' +
-      '<dt>Company</dt><dd>' + escapeText(data.customer.company || '—') + '</dd>' +
-      '<dt>Install ID</dt><dd class="mono">' + escapeText(data.customer.install_id || '—') + '</dd>' +
+      '<dt>Customer ID</dt><dd class="mono">' + escapeText(c.id) + '</dd>' +
+      '<dt>Email</dt><dd>' + escapeText(c.email) + '</dd>' +
+      '<dt>Company</dt><dd>' + escapeText(c.company || '—') + '</dd>' +
+      '<dt>Installation</dt><dd class="mono">' + escapeText(c.install_id || 'Not registered') + '</dd>' +
+      '</dl>';
+
+    const eff = data.effective;
+    html += '<h2 style="margin-top:1.5rem">Entitlement</h2><dl class="kv">' +
+      '<dt>In force</dt><dd>' + escapeText(describeEntitlement(eff)) + '</dd>' +
+      (data.entitlement
+        ? '<dt>Recorded</dt><dd>' + escapeText(describeEntitlement(data.entitlement)) +
+          (data.entitlement.source ? ' <span class="muted">(' + escapeText(data.entitlement.source) + ')</span>' : '') + '</dd>'
+        : '<dt>Recorded</dt><dd class="muted">None (free tier)</dd>') +
       '</dl>';
 
     if (data.license) {
       const lic = data.license;
-      html += '<h2 style="margin-top:1.5rem">Active license</h2>' +
+      html += '<h2 style="margin-top:1.5rem">Current license file</h2>' +
         '<dl class="kv">' +
           '<dt>License ID</dt><dd class="mono">' + escapeText(lic.id) + '</dd>' +
-          '<dt>Tier</dt><dd><span class="badge ' + escapeAttr(lic.tier) + '">' + escapeText(lic.tier) + '</span></dd>' +
-          '<dt>Max users</dt><dd>' + escapeText(String(lic.max_users)) + '</dd>' +
+          '<dt>Installation</dt><dd class="mono">' + escapeText(lic.install_id) + '</dd>' +
+          '<dt>Grants</dt><dd>' + escapeText(describeEntitlement(lic)) + '</dd>' +
           '<dt>Issued</dt><dd>' + escapeText(new Date(lic.issued_at * 1000).toLocaleString()) + '</dd>' +
-          '<dt>Expires</dt><dd>' + (lic.expires_at ? escapeText(new Date(lic.expires_at * 1000).toLocaleString()) : 'Perpetual') + '</dd>' +
+          '<dt>Downloaded</dt><dd>' + (lic.downloaded_at ? escapeText(new Date(lic.downloaded_at * 1000).toLocaleString()) : 'Not yet') + '</dd>' +
         '</dl>' +
-        '<details style="margin-top:1rem"><summary class="muted">Show license_json</summary>' +
+        '<details style="margin-top:1rem"><summary class="muted">Show license.json</summary>' +
         '<pre class="mono" style="margin-top:0.5rem;white-space:pre-wrap;background:#0d1422;padding:1rem;border-radius:8px;border:1px solid var(--border-strong)">' +
         escapeText(lic.license_json) + '</pre></details>';
     } else {
-      html += '<p class="muted" style="margin-top:1rem">No active license.</p>';
+      html += '<p class="muted" style="margin-top:1rem">No current license file.</p>';
+    }
+
+    if (c.install_id) {
+      html += '<div style="margin-top:1.5rem">' +
+        '<button type="button" class="btn btn-secondary" id="reset-install-btn">Reset installation</button>' +
+        '<p class="muted" style="margin-top:0.5rem;line-height:1.5">Unbinds ' + escapeText(c.install_id) +
+        ' and revokes its license so the customer can register a new installation. The old installation ' +
+        'keeps working with the file it has until that license expires.</p></div>';
     }
 
     if (data.downloads && data.downloads.length) {
@@ -175,11 +204,32 @@
     }
 
     block.innerHTML = html;
+    const resetBtn = document.getElementById('reset-install-btn');
+    if (resetBtn) resetBtn.addEventListener('click', function () { resetInstallation(c.id, resetBtn); });
     card.classList.remove('hidden');
     card.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  async function issueLicense(e) {
+  async function resetInstallation(customerId, btn) {
+    btn.disabled = true;
+    try {
+      const res = await fetch('/api/admin/customer/' + encodeURIComponent(customerId) + '/installation/reset', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        showAlert('error', 'Reset failed: ' + (data.error || res.status));
+      } else {
+        showAlert('success', 'Installation ' + data.previous_install_id + ' unbound. The customer can register a new one.');
+        await refreshCustomers();
+        await viewCustomer(customerId);
+      }
+    } catch (err) {
+      showAlert('error', 'Network error: ' + err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  async function setEntitlement(e) {
     e.preventDefault();
     const customer_id = document.getElementById('cust-id').value.trim();
     const tier = document.getElementById('i-tier').value;
@@ -193,9 +243,9 @@
     }
     const btn = document.getElementById('issue-btn');
     btn.disabled = true;
-    btn.textContent = 'Generating…';
+    btn.textContent = 'Saving…';
     try {
-      const res = await fetch('/api/admin/license/generate', {
+      const res = await fetch('/api/admin/entitlement', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ customer_id: customer_id, tier: tier, max_users: max_users, expires_at: expires_at }),
@@ -204,7 +254,10 @@
       if (!res.ok) {
         showAlert('error', 'Failed: ' + (data.error || res.status) + (data.detail ? ' — ' + data.detail : ''));
       } else {
-        showAlert('success', 'License ' + data.license.id + ' issued.');
+        showAlert('success', 'Entitlement saved: ' + describeEntitlement(data.effective) + '. ' +
+          (data.license
+            ? 'License issued for installation ' + data.license.install_id + '.'
+            : 'No installation registered yet; the license is issued when the customer registers one.'));
         await refreshCustomers();
         await viewCustomer(customer_id);
       }
@@ -212,8 +265,14 @@
       showAlert('error', 'Network error: ' + err.message);
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Generate license';
+      btn.textContent = 'Save entitlement';
     }
+  }
+
+  function describeEntitlement(e) {
+    const users = e.max_users === 0 ? 'unlimited users' : e.max_users + ' users';
+    const until = e.expires_at ? ', until ' + new Date(e.expires_at * 1000).toLocaleDateString() : ', no expiry';
+    return e.tier + ', ' + users + until;
   }
 
   async function logout() {

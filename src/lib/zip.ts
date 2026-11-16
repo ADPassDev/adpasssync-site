@@ -1,9 +1,9 @@
 // ZIP helpers for the portal download.
 //
 // The download is the published release package (built by the product repo's
-// installer/Publish-Release.ps1) with the customer's license-key.txt and a
-// README.txt added. Rather than unpack and rebuild a ~45 MB archive inside a
-// Worker, we append to it:
+// installer/Publish-Release.ps1) with a README.txt, and the customer's
+// license.json when they have one, added. Rather than unpack and rebuild a
+// ~45 MB archive inside a Worker, we append to it:
 //
 //   [original entries, byte-for-byte] [new entries] [central directory] [EOCD]
 //

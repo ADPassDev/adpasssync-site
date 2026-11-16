@@ -122,6 +122,50 @@ export async function sendPurchaseAlertEmail(
   return { sent: false, provider: 'noop' };
 }
 
+/**
+ * Tell a customer their purchase is active. `licenseIssued` says whether a
+ * license file for their registered installation is already waiting in the
+ * portal, or whether they still need to register one. Best-effort, like the
+ * purchase alert.
+ */
+export async function sendLicenseReadyEmail(
+  env: Env,
+  customer: Customer,
+  entitlement: { tier: string; max_users: number; expires_at: number | null },
+  licenseIssued: boolean,
+): Promise<SendResult> {
+  const dashboard = `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/portal/dashboard.html`;
+  const tier = entitlement.tier.charAt(0).toUpperCase() + entitlement.tier.slice(1);
+  const users = entitlement.max_users === 0 ? 'unlimited AD users' : `${entitlement.max_users} AD users`;
+  const until = entitlement.expires_at
+    ? ` until ${new Date(entitlement.expires_at * 1000).toISOString().slice(0, 10)}`
+    : '';
+  const subject = licenseIssued ? 'Your ADPassSync license is ready' : 'Your ADPassSync purchase is active';
+  const text = [
+    `Your ADPassSync ${tier} license for ${users} is active${until}.`,
+    ``,
+    ...(licenseIssued
+      ? [
+          `Download license.json from your portal and upload it on the License page`,
+          `of the ADPassSync admin console:`,
+        ]
+      : [
+          `To get your license file, open the License page in the ADPassSync admin`,
+          `console and click "Get a license", or enter your installation's Install ID`,
+          `on your portal dashboard:`,
+        ]),
+    ``,
+    dashboard,
+    ``,
+  ].join('\n');
+
+  if (env.RESEND_API_KEY) {
+    return sendViaResend(env, { to: customer.email, subject, text });
+  }
+  console.log(`[dev] license email for ${customer.email} (no RESEND_API_KEY):\n` + text);
+  return { sent: false, provider: 'noop' };
+}
+
 function renderMagicLinkHtml(link: string, ttlMinutes: string): string {
   // Minimal email-safe HTML. No external resources.
   const safeLink = escapeHtml(link);

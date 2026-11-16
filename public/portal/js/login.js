@@ -13,6 +13,9 @@
   // Surface ?error=... query params from the verify redirect.
   const params = new URLSearchParams(location.search);
   const err = params.get('error');
+  // A portal page that sent the visitor here to sign in (e.g. the license
+  // registration page) gets them back afterwards. The server validates it.
+  const next = params.get('next');
   if (err === 'expired_link') {
     showAlert('error', 'That sign-in link has expired or already been used. Request a new one.');
   } else if (err === 'invalid_link') {
@@ -33,7 +36,7 @@
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email }),
+        body: JSON.stringify(next ? { email: email, next: next } : { email: email }),
       });
       const data = await res.json();
       if (!res.ok) {
