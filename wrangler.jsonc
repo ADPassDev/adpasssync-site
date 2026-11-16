@@ -104,8 +104,8 @@
 		// is missing, so payments can't be taken that never become licenses.
 		"PADDLE_ENV": "sandbox",
 		// The Professional price: $5 per user per year, quantity 51-100000.
-		"PADDLE_PRICE_ID": "",
+		"PADDLE_PRICE_ID": "pri_01m7jnkyxt9yncyv9ap0qanw96",
 		// Client-side token for Paddle.js (public by design).
-		"PADDLE_CLIENT_TOKEN": ""
+		"PADDLE_CLIENT_TOKEN": "test_bc00da8643d20aa7af512288191"
 	}
 }
