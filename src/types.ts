@@ -9,6 +9,8 @@ export type Env = {
   // Plain config (vars).
   PUBLIC_BASE_URL: string;
   ADMIN_EMAILS: string;
+  CONTACT_NOTIFY_EMAILS: string;
+  PURCHASE_NOTIFY_EMAILS: string;
   SESSION_TTL_HOURS: string;
   MAGIC_LINK_TTL_MINUTES: string;
   FROM_EMAIL: string;

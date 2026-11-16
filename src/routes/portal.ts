@@ -371,6 +371,7 @@ function readmeText(args: {
   const title = `ADPassSync ${args.release.version}`;
   const released = args.release.released_at?.slice(0, 10) ?? null;
   const hasSums = args.releaseFiles.includes('SHA256SUMS.txt');
+  const credProv = args.releaseFiles.find((n) => /^ADPassCredProv.*\.msi$/i.test(n));
   return [
     title,
     '='.repeat(title.length),
@@ -406,6 +407,21 @@ function readmeText(args: {
     '---------------',
     'Start with the Quick Start Guide. The Administrator Guide covers',
     'deployment, configuration and licensing in full.',
+    ...(credProv
+      ? [
+          '',
+          'Credential provider (optional)',
+          '------------------------------',
+          `${credProv} adds the ADPassSync tiles to the`,
+          'Ctrl+Alt+Del change-password screen and the logon screen, so users see',
+          'the live policy rules and the reason a password was rejected. Install it',
+          'on workstations and member servers; it is not needed on the Domain',
+          'Controller, and the rest of the product works without it.',
+          '',
+          'Deploy it by Group Policy software installation or your usual endpoint',
+          'management tool. A reboot is required before the tiles appear.',
+        ]
+      : []),
     '',
     'Licensing',
     '---------',
