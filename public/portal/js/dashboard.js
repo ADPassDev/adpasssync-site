@@ -75,6 +75,18 @@
         '</dl>';
     }
 
+    // The release the download button serves right now (null if the
+    // release manifest couldn't be read; the line then stays hidden).
+    const rel = data.release;
+    const relLine = document.getElementById('release-line');
+    if (rel) {
+      const parts = ['Version ' + rel.version];
+      if (rel.released_at) parts.push('released ' + new Date(rel.released_at).toLocaleDateString());
+      if (rel.package_size) parts.push((rel.package_size / 1048576).toFixed(1) + ' MB');
+      relLine.textContent = parts.join(' · ');
+      relLine.classList.remove('hidden');
+    }
+
     const downloads = data.downloads || [];
     const dlBlock = document.getElementById('downloads-block');
     if (downloads.length) {
