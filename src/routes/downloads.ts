@@ -26,6 +26,11 @@
 // object gets a full 200 of the new build. Multi-range requests and other
 // range units get the full 200 (RFC 9110 lets a server ignore Range).
 //
+// Conditional GET and HEAD: an If-None-Match (or, without one,
+// If-Modified-Since) that matches the stored object gets a 304 with no body,
+// so a cache holding the current build revalidates it without a download.
+// That is what makes the bloom's `no-cache` policy below cheap.
+//
 // Routes (mounted at /downloads from src/index.ts), each answering GET and HEAD:
 //
 //   /hashdb.bin     — the bloom filter itself (~2-3 GB).
@@ -44,13 +49,15 @@ type Ctx = Context<{ Bindings: Env }>;
 
 const downloadsRoutes = new Hono<{ Bindings: Env }>();
 
-// Long max-age on the bloom binary itself. The publisher overwrites the
-// HASHDB_BLOOM_KEY object in place only when a new build is ready, and
-// clients use the .json metadata to detect when to re-fetch. Browsers may
-// reuse it for an hour (max-age) and shared caches for a day (s-maxage);
-// Cloudflare's own edge doesn't cache it (see top of file). `public` so any
-// caching proxy in front of Cloudflare (corporate gateways) participates.
-const BLOOM_CACHE = 'public, max-age=3600, s-maxage=86400, immutable';
+// The publisher overwrites the bloom in place at a fixed URL, so no cache may
+// reuse a stored copy without checking that it is still current: any
+// freshness lifetime here lets a proxy keep serving the previous build after
+// a publish, while .sha256/.json already describe the new one. `no-cache`
+// still lets browsers and caching proxies in front of Cloudflare (corporate
+// gateways) store it, but makes them revalidate before each use; a 304 makes
+// that cheap, and a publish is picked up on the next request. Cloudflare's
+// own edge doesn't cache it (see top of file).
+const BLOOM_CACHE = 'public, no-cache';
 
 // The checksum and metadata files are small, change atomically with each
 // publish, and are exactly the signals clients use to decide whether to
@@ -132,6 +139,37 @@ function ifRangeMatches(ifRange: string | undefined, obj: R2Object): boolean {
   );
 }
 
+// Conditional GET/HEAD (RFC 9110 §13.1.2, §13.1.3): true when the client's
+// copy is current, so a 304 can stand in for the body. If-None-Match takes
+// precedence over If-Modified-Since and compares weakly, so W/"x" matches "x".
+function notModified(c: Ctx, obj: R2Object): boolean {
+  const ifNoneMatch = c.req.header('If-None-Match');
+  if (ifNoneMatch !== undefined) {
+    if (ifNoneMatch.trim() === '*') return true;
+    const tags = ifNoneMatch.match(/(?:W\/)?"[^"]*"/g) ?? [];
+    return tags.some((tag) => tag.replace(/^W\//, '') === obj.httpEtag);
+  }
+  const ifModifiedSince = c.req.header('If-Modified-Since');
+  if (ifModifiedSince === undefined) return false;
+  const date = Date.parse(ifModifiedSince);
+  return (
+    !Number.isNaN(date) && Math.floor(obj.uploaded.getTime() / 1000) <= Math.floor(date / 1000)
+  );
+}
+
+// A 304 carries no body, just what a cache needs to refresh its stored copy
+// (RFC 9110 §15.4.5).
+function notModifiedResponse(obj: R2Object, opts: ServeOptions): Response {
+  return new Response(null, {
+    status: 304,
+    headers: {
+      'Cache-Control': opts.cacheControl,
+      ETag: obj.httpEtag,
+      'Last-Modified': obj.uploaded.toUTCString(),
+    },
+  });
+}
+
 // Headers for 200, 206 and HEAD responses. contentLength is the length of the
 // body actually sent: the whole object, or just the requested range.
 function objectHeaders(obj: R2Object, opts: ServeOptions, contentLength: number): Headers {
@@ -160,7 +198,8 @@ async function serveFull(c: Ctx, key: string, opts: ServeOptions): Promise<Respo
   return new Response(obj.body, { status: 200, headers: objectHeaders(obj, opts, obj.size) });
 }
 
-// Stream an R2 object with the right headers, honouring Range on GET.
+// Stream an R2 object with the right headers, honouring conditional requests,
+// and Range on GET.
 async function serveObject(c: Ctx, key: string, opts: ServeOptions): Promise<Response> {
   const bucket = c.env.HASHDB_BUCKET;
 
@@ -169,24 +208,35 @@ async function serveObject(c: Ctx, key: string, opts: ServeOptions): Promise<Res
   if (c.req.method === 'HEAD') {
     const meta = await bucket.head(key);
     if (!meta) return notPublished(c, key);
+    if (notModified(c, meta)) return notModifiedResponse(meta, opts);
     return new Response(null, { status: 200, headers: objectHeaders(meta, opts, meta.size) });
   }
 
   const range = parseRange(c.req.header('Range'));
-  if (range.kind === 'none') return serveFull(c, key, opts);
+  const conditional =
+    c.req.header('If-None-Match') !== undefined || c.req.header('If-Modified-Since') !== undefined;
+  if (range.kind === 'none' && !conditional) return serveFull(c, key, opts);
 
-  // Read the metadata first: resolving the range (or answering 416) needs the
-  // total size, and If-Range is checked against the current ETag. Then fetch
-  // exactly those bytes, pinned with onlyIf to the version just checked. The
-  // publisher overwrites in place, and an unpinned read racing a publish would
-  // splice bytes of the new build into a range computed against the old one.
-  // If the pin fails, the object changed in between: start over against the
-  // new version, as if the request had arrived after the publish.
+  // Read the metadata first: a conditional GET may need only a 304, resolving
+  // a range (or answering 416) needs the total size, and If-Range is checked
+  // against the current ETag. Then fetch exactly those bytes, pinned with
+  // onlyIf to the version just checked. The publisher overwrites in place,
+  // and an unpinned read racing a publish would splice bytes of the new build
+  // into a range computed against the old one. If the pin fails, the object
+  // changed in between: start over against the new version, as if the request
+  // had arrived after the publish.
   for (let attempt = 0; attempt < 2; attempt++) {
     const meta = await bucket.head(key);
     if (!meta) return notPublished(c, key);
-    // RFC 9110 lets a server ignore Range for an empty representation.
-    if (meta.size === 0 || !ifRangeMatches(c.req.header('If-Range'), meta)) {
+    // Preconditions are evaluated before Range (RFC 9110 §13.2.2).
+    if (notModified(c, meta)) return notModifiedResponse(meta, opts);
+    // The whole object when there is no range to apply, the object is empty
+    // (RFC 9110 lets a server ignore Range then), or If-Range is stale.
+    if (
+      range.kind === 'none' ||
+      meta.size === 0 ||
+      !ifRangeMatches(c.req.header('If-Range'), meta)
+    ) {
       return serveFull(c, key, opts);
     }
     const byteRange = resolveRange(range, meta.size);

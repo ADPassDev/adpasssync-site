@@ -7,8 +7,9 @@
 # sidecars, seeds them into a throwaway local R2 state directory (your
 # .wrangler/state and remote buckets are not touched), starts its own
 # `wrangler dev`, and checks the responses with curl: 206 and 416 with
-# Content-Range, `curl -C -` resumes, HEAD, Accept-Ranges, If-Range, and
-# If-Range after the object is replaced in place. Prints PASS/FAIL per check
+# Content-Range, `curl -C -` resumes, HEAD, Accept-Ranges, If-Range, 304s for
+# conditional requests, and revalidation and If-Range after the object is
+# replaced in place. Prints PASS/FAIL per check
 # and exits non-zero if any failed. Needs `npm install` first.
 set -uo pipefail
 
@@ -85,6 +86,7 @@ check() { # name actual expected
 req() { # name url [curl args...]  ->  $T/name.h (headers), $T/name.body
   local n=$1 u=$2
   shift 2
+  : >"$T/$n.body" # curl writes no file for an empty body, e.g. a 304
   curl -sS -D "$T/$n.hdr" -o "$T/$n.body" "$@" "$u"
   tr -d '\r' <"$T/$n.hdr" >"$T/$n.h"
 }
@@ -170,7 +172,7 @@ check "HEAD ignores Range -> 200, full length" \
 req full "$B/hashdb.bin"
 check "plain GET -> 200 with the whole object" "$(status full) $(cmp -s "$T/full.body" "$V1" && echo same)" "200 same"
 check "plain GET -> Accept-Ranges, no Content-Range" "$(hdr full accept-ranges)|$(hdr full content-range)" "bytes|"
-check "plain GET -> Cache-Control unchanged" "$(hdr full cache-control)" 'public, max-age=3600, s-maxage=86400, immutable'
+check "plain GET -> Cache-Control: public, no-cache" "$(hdr full cache-control)" 'public, no-cache'
 check "plain GET -> ETag and Last-Modified match HEAD" "$(hdr full etag) $(hdr full last-modified)" "$ETAG $LASTMOD"
 
 # --- If-Range ----------------------------------------------------------------
@@ -193,6 +195,19 @@ check "malformed Range + stale If-Range -> 200 (Range ignored)" "$(status ifr_in
 req ifr_inv_ok "$B/hashdb.bin" -H 'Range: bytes=5-2' -H "If-Range: $ETAG"
 check "malformed Range + current If-Range -> 416" "$(status ifr_inv_ok)" 416
 
+# --- conditional requests (cache revalidation) --------------------------------
+req inm "$B/hashdb.bin" -H "If-None-Match: $ETAG"
+check "If-None-Match current ETag -> 304, no body" "$(status inm) $(nbytes inm)" "304 0"
+check "304 carries ETag and Cache-Control" "$(hdr inm etag)|$(hdr inm cache-control)" "$ETAG|public, no-cache"
+req inm_other "$B/hashdb.bin" -H 'If-None-Match: "0000"'
+check "If-None-Match other ETag -> 200 full" "$(status inm_other) $(nbytes inm_other)" "200 $SIZE"
+req ims "$B/hashdb.bin" -H "If-Modified-Since: $LASTMOD"
+check "If-Modified-Since equal to Last-Modified -> 304" "$(status ims) $(nbytes ims)" "304 0"
+req inm_range "$B/hashdb.bin" -r 0-99 -H "If-None-Match: $ETAG"
+check "current If-None-Match wins over Range -> 304" "$(status inm_range)" 304
+curl -sS -I -H "If-None-Match: $ETAG" "$B/hashdb.bin" | tr -d '\r' >"$T/head304.h"
+check "HEAD with current If-None-Match -> 304" "$(head -1 "$T/head304.h" | awk '{print $2}')" 304
+
 # --- sidecar files -----------------------------------------------------------
 for f in hashdb.sha256 hashdb.json; do
   n=${f//./_}
@@ -214,6 +229,9 @@ check "after publish: ETag changed" "$([[ -n $NEW_ETAG && $NEW_ETAG != "$ETAG" ]
 req stale "$B/hashdb.bin" -r 5000000- -H "If-Range: $ETAG"
 check "after publish: old ETag in If-Range -> 200 with the whole new build" \
   "$(status stale) $(hdr stale etag) $(cmp -s "$T/stale.body" "$V2" && echo same)" "200 $NEW_ETAG same"
+req reval "$B/hashdb.bin" -H "If-None-Match: $ETAG"
+check "after publish: revalidating with the old ETag -> 200 with the new build" \
+  "$(status reval) $(hdr reval etag) $(cmp -s "$T/reval.body" "$V2" && echo same)" "200 $NEW_ETAG same"
 req fresh "$B/hashdb.bin" -r 0-99 -H "If-Range: $NEW_ETAG"
 check "after publish: new ETag in If-Range -> 206" "$(status fresh) $(hdr fresh content-range)" "206 bytes 0-99/$SIZE2"
 head -c 5000000 "$V1" >"$T/stale-resume.bin"
