@@ -2,9 +2,10 @@
 //
 //   npm test
 //
-// Covers the Range / If-Range logic plus what `wrangler dev` can't trigger on
-// demand: the object being replaced or deleted between head() and get(), and
-// which R2 calls each kind of request makes (each one is a Class B operation).
+// Covers the Range, If-Range and conditional-request (304) logic, plus what
+// `wrangler dev` can't trigger on demand: the object being replaced or
+// deleted between head() and get(), and which R2 calls each kind of request
+// makes (each one is a Class B operation).
 // test/downloads-dev.sh runs end-to-end checks against a local R2 bucket.
 
 import { test } from 'node:test';
@@ -93,6 +94,7 @@ test('plain GET: one get(), full 200 with Accept-Ranges', async () => {
   assert.equal(res.headers.get('etag'), '"aaaa"');
   assert.equal(res.headers.get('last-modified'), V1.uploaded.toUTCString());
   assert.equal(res.headers.get('content-disposition'), 'attachment; filename="hashdb.bin"');
+  assert.equal(res.headers.get('cache-control'), 'public, no-cache');
   assert.equal(res.headers.get('content-range'), null);
   assert.deepEqual(calls, ['get']);
 });
@@ -208,6 +210,73 @@ test('stale If-Range: head(), then one full get()', async () => {
   assert.equal(res.status, 200);
   assert.equal(body, BODY);
   assert.deepEqual(calls, ['head', 'get']);
+});
+
+test('conditional GET: 304 when the client copy is current, otherwise the full 200', async (t) => {
+  const lastModified = V1.uploaded.toUTCString();
+  const oneSecondEarlier = new Date(V1.uploaded.getTime() - 1000).toUTCString();
+  const cases: [Record<string, string>, number][] = [
+    [{ 'If-None-Match': '"aaaa"' }, 304],
+    [{ 'If-None-Match': 'W/"aaaa"' }, 304], // If-None-Match compares weakly
+    [{ 'If-None-Match': '"zzzz", "aaaa"' }, 304],
+    [{ 'If-None-Match': '*' }, 304],
+    [{ 'If-None-Match': '"zzzz"' }, 200],
+    [{ 'If-Modified-Since': lastModified }, 304],
+    [{ 'If-Modified-Since': oneSecondEarlier }, 200],
+    [{ 'If-Modified-Since': 'not-a-date' }, 200],
+    [{ 'If-None-Match': '"zzzz"', 'If-Modified-Since': lastModified }, 200], // If-None-Match wins
+  ];
+  for (const [headers, status] of cases) {
+    await t.test(JSON.stringify(headers), async () => {
+      const { bucket } = mockBucket(V1);
+      const { res, body } = await request(bucket, { headers });
+      assert.equal(res.status, status);
+      if (status === 304) {
+        assert.equal(body, '');
+        assert.equal(res.headers.get('etag'), '"aaaa"');
+        assert.equal(res.headers.get('last-modified'), lastModified);
+        assert.equal(res.headers.get('cache-control'), 'public, no-cache');
+      } else {
+        assert.equal(body, BODY);
+      }
+    });
+  }
+});
+
+test('conditional GET: one head() for a 304, head() then get() for a changed object', async () => {
+  const current = mockBucket(V1);
+  await request(current.bucket, { headers: { 'If-None-Match': '"aaaa"' } });
+  assert.deepEqual(current.calls, ['head']);
+  const changed = mockBucket(V1);
+  await request(changed.bucket, { headers: { 'If-None-Match': '"zzzz"' } });
+  assert.deepEqual(changed.calls, ['head', 'get']);
+});
+
+test('HEAD with a current If-None-Match: 304', async () => {
+  const { bucket, calls } = mockBucket(V1);
+  const { res } = await request(bucket, { method: 'HEAD', headers: { 'If-None-Match': '"aaaa"' } });
+  assert.equal(res.status, 304);
+  assert.deepEqual(calls, ['head']);
+});
+
+test('a current If-None-Match wins over Range; a stale one leaves Range alone', async () => {
+  const current = await request(mockBucket(V1).bucket, {
+    headers: { Range: 'bytes=0-6', 'If-None-Match': '"aaaa"' },
+  });
+  assert.equal(current.res.status, 304);
+  const stale = await request(mockBucket(V1).bucket, {
+    headers: { Range: 'bytes=0-6', 'If-None-Match': '"zzzz"' },
+  });
+  assert.equal(stale.res.status, 206);
+  assert.equal(stale.body, 'version');
+});
+
+test('after a publish, a cache revalidating with the old ETag gets the new build', async () => {
+  const { bucket } = mockBucket(V2);
+  const { res, body } = await request(bucket, { headers: { 'If-None-Match': '"aaaa"' } });
+  assert.equal(res.status, 200);
+  assert.equal(body, 'VERSION-TWO-abcdefghijklmnop');
+  assert.equal(res.headers.get('etag'), '"bbbb"');
 });
 
 // A publish replacing the object between head() and get(): the pinned read
