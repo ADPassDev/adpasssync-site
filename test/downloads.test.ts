@@ -357,7 +357,7 @@ test('sidecars use their own keys and content types, with the same Range handlin
     assert.equal(body, 'version');
     assert.equal(res.headers.get('content-type'), contentType);
     assert.equal(res.headers.get('content-disposition'), null);
-    assert.equal(res.headers.get('cache-control'), 'public, max-age=60, must-revalidate');
+    assert.equal(res.headers.get('cache-control'), 'public, no-cache');
     assert.deepEqual(keys, [key, key]);
   }
 });

@@ -29,7 +29,7 @@
 // Conditional GET and HEAD: an If-None-Match (or, without one,
 // If-Modified-Since) that matches the stored object gets a 304 with no body,
 // so a cache holding the current build revalidates it without a download.
-// That is what makes the bloom's `no-cache` policy below cheap.
+// That is what makes the `no-cache` policy below cheap.
 //
 // Routes (mounted at /downloads from src/index.ts), each answering GET and HEAD:
 //
@@ -49,20 +49,16 @@ type Ctx = Context<{ Bindings: Env }>;
 
 const downloadsRoutes = new Hono<{ Bindings: Env }>();
 
-// The publisher overwrites the bloom in place at a fixed URL, so no cache may
-// reuse a stored copy without checking that it is still current: any
-// freshness lifetime here lets a proxy keep serving the previous build after
-// a publish, while .sha256/.json already describe the new one. `no-cache`
-// still lets browsers and caching proxies in front of Cloudflare (corporate
-// gateways) store it, but makes them revalidate before each use; a 304 makes
-// that cheap, and a publish is picked up on the next request. Cloudflare's
-// own edge doesn't cache it (see top of file).
-const BLOOM_CACHE = 'public, no-cache';
-
-// The checksum and metadata files are small, change atomically with each
-// publish, and are exactly the signals clients use to decide whether to
-// refresh. Short cache, must-revalidate.
-const META_CACHE = 'public, max-age=60, must-revalidate';
+// The publisher overwrites all three objects in place at fixed URLs, so no
+// cache may reuse a stored copy without checking that it is still current.
+// Any freshness lifetime lets a proxy keep serving the previous build, or the
+// previous checksum, after a publish, so that the bloom and its .sha256/.json
+// disagree and agents fail verification. `no-cache` still lets browsers and
+// caching proxies in front of Cloudflare (corporate gateways) store them, but
+// makes them revalidate before each use; a 304 makes that cheap, and a
+// publish is picked up on the next request. Cloudflare's own edge doesn't
+// cache them (see top of file).
+const CACHE_CONTROL = 'public, no-cache';
 
 type ServeOptions = {
   contentType: string;
@@ -268,7 +264,7 @@ async function serveObject(c: Ctx, key: string, opts: ServeOptions): Promise<Res
 downloadsRoutes.get('/hashdb.bin', (c) =>
   serveObject(c, c.env.HASHDB_BLOOM_KEY, {
     contentType: 'application/octet-stream',
-    cacheControl: BLOOM_CACHE,
+    cacheControl: CACHE_CONTROL,
     filename: 'hashdb.bin',
   }),
 );
@@ -276,14 +272,14 @@ downloadsRoutes.get('/hashdb.bin', (c) =>
 downloadsRoutes.get('/hashdb.sha256', (c) =>
   serveObject(c, c.env.HASHDB_SHA256_KEY, {
     contentType: 'text/plain; charset=utf-8',
-    cacheControl: META_CACHE,
+    cacheControl: CACHE_CONTROL,
   }),
 );
 
 downloadsRoutes.get('/hashdb.json', (c) =>
   serveObject(c, c.env.HASHDB_META_KEY, {
     contentType: 'application/json; charset=utf-8',
-    cacheControl: META_CACHE,
+    cacheControl: CACHE_CONTROL,
   }),
 );
 
