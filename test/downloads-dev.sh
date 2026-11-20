@@ -217,6 +217,9 @@ for f in hashdb.sha256 hashdb.json; do
     "$(status "$n") $(hdr "$n" content-range) $(cmp -s "$T/$n.body" <(head -c 10 "$D/$f") && echo same)" "206 bytes 0-9/$fs same"
   curl -sS -I "$B/$f" | tr -d '\r' >"$T/$n-head.h"
   check "$f HEAD -> Accept-Ranges" "$(grep -i '^accept-ranges:' "$T/$n-head.h" | cut -d' ' -f2-)" bytes
+  check "$f -> Cache-Control: public, no-cache" "$(grep -i '^cache-control:' "$T/$n-head.h" | cut -d' ' -f2-)" 'public, no-cache'
+  req "${n}_304" "$B/$f" -H "If-None-Match: $(grep -i '^etag:' "$T/$n-head.h" | cut -d' ' -f2-)"
+  check "$f revalidated with its ETag -> 304" "$(status "${n}_304") $(nbytes "${n}_304")" "304 0"
   req "${n}_past" "$B/$f" -r "$fs-"
   check "$f past the end -> 416" "$(status "${n}_past") $(hdr "${n}_past" content-range)" "416 bytes */$fs"
 done
