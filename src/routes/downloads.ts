@@ -18,6 +18,12 @@
 // Workers Cache is ever enabled, re-test resumes: it strips Range before the
 // Worker runs.
 //
+// Conditional requests: If-None-Match and If-Modified-Since get a 304 with no
+// body while the client's copy is still the stored object, so a cache
+// revalidating its copy of the bloom (see BLOOM_CACHE) costs one head(), not
+// another 2-3 GB. As RFC 9110 §13.2.2 orders, they're evaluated before Range
+// and If-Range.
+//
 // Byte ranges, so `curl -C -`, BITS and download managers can resume a
 // multi-GB transfer instead of restarting it: a GET with a single
 // `Range: bytes=` spec gets a 206 with Content-Range; a malformed or
@@ -44,13 +50,17 @@ type Ctx = Context<{ Bindings: Env }>;
 
 const downloadsRoutes = new Hono<{ Bindings: Env }>();
 
-// Long max-age on the bloom binary itself. The publisher overwrites the
-// HASHDB_BLOOM_KEY object in place only when a new build is ready, and
-// clients use the .json metadata to detect when to re-fetch. Browsers may
-// reuse it for an hour (max-age) and shared caches for a day (s-maxage);
-// Cloudflare's own edge doesn't cache it (see top of file). `public` so any
-// caching proxy in front of Cloudflare (corporate gateways) participates.
-const BLOOM_CACHE = 'public, max-age=3600, s-maxage=86400, immutable';
+// The bloom's URL isn't versioned: the publisher overwrites the
+// HASHDB_BLOOM_KEY object in place with each build, and within a minute
+// (META_CACHE) the .sha256 and .json describe the new one. So caches may
+// store the bloom but must revalidate it before every reuse (no-cache): one
+// still serving the previous build hands agents a file that fails checksum
+// verification. Revalidating is cheap, since an unchanged bloom gets a 304
+// with no body. `public` so caching proxies in front of Cloudflare (corporate
+// gateways) can still store it; Cloudflare's own edge doesn't (see top of
+// file). A long max-age or `immutable` is only safe on a URL whose content
+// never changes, such as a versioned one.
+const BLOOM_CACHE = 'public, no-cache';
 
 // The checksum and metadata files are small, change atomically with each
 // publish, and are exactly the signals clients use to decide whether to
@@ -132,6 +142,37 @@ function ifRangeMatches(ifRange: string | undefined, obj: R2Object): boolean {
   );
 }
 
+// If-None-Match and If-Modified-Since (RFC 9110 §13.1.2, §13.1.3): true if
+// the client's copy is still the stored object, so it gets a 304. If-None-Match
+// matches "*", or any listed entity-tag whose quoted part equals our ETag: the
+// weak comparison, which ignores a W/ prefix (Cloudflare can weaken an ETag,
+// e.g. when it compresses a response). If-Modified-Since counts only without
+// If-None-Match, and is compared to the second, the precision Last-Modified is
+// sent with.
+function isNotModified(c: Ctx, obj: R2Object): boolean {
+  const ifNoneMatch = c.req.header('If-None-Match');
+  if (ifNoneMatch !== undefined) {
+    if (ifNoneMatch.trim() === '*') return true;
+    return ifNoneMatch.match(/"[^"]*"/g)?.includes(obj.httpEtag) ?? false;
+  }
+  const ifModifiedSince = c.req.header('If-Modified-Since');
+  if (ifModifiedSince === undefined) return false;
+  const date = Date.parse(ifModifiedSince);
+  return (
+    !Number.isNaN(date) && Math.floor(obj.uploaded.getTime() / 1000) <= Math.floor(date / 1000)
+  );
+}
+
+// A 304 repeats the ETag and Cache-Control a 200 would send (RFC 9110
+// §15.4.5), which a cache uses to refresh its stored copy, and leaves out the
+// 200's content headers.
+function notModified(obj: R2Object, opts: ServeOptions): Response {
+  const headers = new Headers();
+  headers.set('Cache-Control', opts.cacheControl);
+  headers.set('ETag', obj.httpEtag);
+  return new Response(null, { status: 304, headers });
+}
+
 // Headers for 200, 206 and HEAD responses. contentLength is the length of the
 // body actually sent: the whole object, or just the requested range.
 function objectHeaders(obj: R2Object, opts: ServeOptions, contentLength: number): Headers {
@@ -160,7 +201,8 @@ async function serveFull(c: Ctx, key: string, opts: ServeOptions): Promise<Respo
   return new Response(obj.body, { status: 200, headers: objectHeaders(obj, opts, obj.size) });
 }
 
-// Stream an R2 object with the right headers, honouring Range on GET.
+// Stream an R2 object with the right headers, honouring conditional requests
+// and, on GET, Range.
 async function serveObject(c: Ctx, key: string, opts: ServeOptions): Promise<Response> {
   const bucket = c.env.HASHDB_BUCKET;
 
@@ -169,22 +211,29 @@ async function serveObject(c: Ctx, key: string, opts: ServeOptions): Promise<Res
   if (c.req.method === 'HEAD') {
     const meta = await bucket.head(key);
     if (!meta) return notPublished(c, key);
+    if (isNotModified(c, meta)) return notModified(meta, opts);
     return new Response(null, { status: 200, headers: objectHeaders(meta, opts, meta.size) });
   }
 
+  // A plain GET, the usual full download, takes a single get().
   const range = parseRange(c.req.header('Range'));
-  if (range.kind === 'none') return serveFull(c, key, opts);
+  const conditional =
+    c.req.header('If-None-Match') !== undefined || c.req.header('If-Modified-Since') !== undefined;
+  if (range.kind === 'none' && !conditional) return serveFull(c, key, opts);
 
-  // Read the metadata first: resolving the range (or answering 416) needs the
-  // total size, and If-Range is checked against the current ETag. Then fetch
-  // exactly those bytes, pinned with onlyIf to the version just checked. The
-  // publisher overwrites in place, and an unpinned read racing a publish would
-  // splice bytes of the new build into a range computed against the old one.
-  // If the pin fails, the object changed in between: start over against the
-  // new version, as if the request had arrived after the publish.
+  // Read the metadata first: the preconditions and If-Range are checked
+  // against the current version, and resolving the range (or answering 416)
+  // needs the total size. Then fetch exactly those bytes, pinned with onlyIf
+  // to the version just checked. The publisher overwrites in place, and an
+  // unpinned read racing a publish would splice bytes of the new build into a
+  // range computed against the old one. If the pin fails, the object changed
+  // in between: start over against the new version, as if the request had
+  // arrived after the publish.
   for (let attempt = 0; attempt < 2; attempt++) {
     const meta = await bucket.head(key);
     if (!meta) return notPublished(c, key);
+    if (isNotModified(c, meta)) return notModified(meta, opts);
+    if (range.kind === 'none') return serveFull(c, key, opts);
     // RFC 9110 lets a server ignore Range for an empty representation.
     if (meta.size === 0 || !ifRangeMatches(c.req.header('If-Range'), meta)) {
       return serveFull(c, key, opts);
