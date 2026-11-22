@@ -21,23 +21,37 @@
 	"observability": {
 		"enabled": true
 	},
-	// D1 database for customers, sessions, licenses, downloads.
+	// D1 databases:
+	//   DB               — customers, sessions, licenses, downloads, billing.
+	//   HASHDB_LICENSES  — the adpasssync-downloads Worker's key table (product
+	//                      repo, cloudflare/worker). Paid customers get a key
+	//                      there for the full bloom filter at /downloads/paid/*.
 	"d1_databases": [
 		{
 			"binding": "DB",
 			"database_name": "adpasssync-db",
 			"database_id": "3b20d3ea-c2fd-4785-8587-19adbef6d025"
+		},
+		{
+			"binding": "HASHDB_LICENSES",
+			"database_name": "adpasssync-licenses",
+			"database_id": "d29d9072-d315-4d88-adad-00b9762f7efa"
 		}
 	],
 	// R2 buckets:
-	//   INSTALLER_BUCKET — base MSI installer and release artifacts.
+	//   RELEASES_BUCKET — published releases: latest.json plus immutable
+	//                     v<version>/ directories, written only by
+	//                     installer/Publish-Release.ps1 in the product repo.
+	//                     /api/portal/download serves the release package
+	//                     that latest.json names, so publishing a release
+	//                     updates the portal download with no extra step.
 	//   HASHDB_BUCKET    — pre-built bloom filter (hashdb.bin + .sha256 + .json)
 	//                      served under /downloads/* for customers who don't
 	//                      want to run the multi-hour HIBP build themselves.
 	"r2_buckets": [
 		{
-			"binding": "INSTALLER_BUCKET",
-			"bucket_name": "adpasssync-installers"
+			"binding": "RELEASES_BUCKET",
+			"bucket_name": "adpasssync-releases"
 		},
 		{
 			"binding": "HASHDB_BUCKET",
@@ -51,19 +65,47 @@
 	//   LICENSE_PRIVATE_KEY  PKCS8 PEM RSA private key used to sign licenses
 	//   LICENSE_PUBLIC_KEY   matching SPKI PEM public key (shipped with installer)
 	//   RESEND_API_KEY       optional: Resend API key for magic-link email
+	//   PADDLE_API_KEY       Paddle API key (server-side; see PADDLE_ENV)
+	//   PADDLE_WEBHOOK_SECRET  secret key of the Paddle notification
+	//                        destination pointing at /api/paddle/webhook
+	//   PADDLE_SANDBOX_TESTERS  while PADDLE_ENV is "sandbox": the only
+	//                        accounts (comma-separated emails) that can buy.
+	//                        Sandbox checkouts take Paddle's public test
+	//                        cards, so nobody else gets one on the live site.
 	"vars": {
 		"PUBLIC_BASE_URL": "https://adpasssync.com",
 		"ADMIN_EMAILS": "admin@adpasssync.com",
+		// Where public contact-form submissions are sent. Deliberately separate
+		// from ADMIN_EMAILS, which controls portal admin access — the two need to
+		// be able to move independently.
+		"CONTACT_NOTIFY_EMAILS": "pidclawbot@gmail.com",
+		// Where quote-request alerts are sent. Also kept off ADMIN_EMAILS:
+		// admin@adpasssync.com is the portal admin identity, but nothing is
+		// currently routing inbound mail for the domain, so alerts addressed
+		// there were being accepted and silently dropped.
+		"PURCHASE_NOTIFY_EMAILS": "pidclawbot@gmail.com",
 		"SESSION_TTL_HOURS": "24",
 		"MAGIC_LINK_TTL_MINUTES": "15",
 		"FROM_EMAIL": "no-reply@adpasssync.com",
-		"INSTALLER_OBJECT_KEY": "current/ADPassSync-Setup.msi",
+		// Release manifest inside RELEASES_BUCKET.
+		"RELEASE_MANIFEST_KEY": "latest.json",
 		"DEV_RETURN_MAGIC_LINK": "false",
 		// Object keys inside HASHDB_BUCKET. "current/" is the live channel
 		// served at /downloads/*. Archived builds live under archive/<version>/
 		// and aren't routed publicly.
 		"HASHDB_BLOOM_KEY": "current/hashdb.bin",
 		"HASHDB_SHA256_KEY": "current/hashdb.sha256",
-		"HASHDB_META_KEY": "current/hashdb.json"
+		"HASHDB_META_KEY": "current/hashdb.json",
+		// Paddle Billing. "sandbox" or "production"; the API key, client-side
+		// token and price must all come from that same environment. Leave
+		// PADDLE_PRICE_ID or PADDLE_CLIENT_TOKEN empty to turn self-service
+		// purchasing off (the dashboard falls back to quote requests). It's
+		// also off while the PADDLE_API_KEY or PADDLE_WEBHOOK_SECRET secret
+		// is missing, so payments can't be taken that never become licenses.
+		"PADDLE_ENV": "sandbox",
+		// The Professional price: $5 per user per year, quantity 51-100000.
+		"PADDLE_PRICE_ID": "pri_01m7jnkyxt9yncyv9ap0qanw96",
+		// Client-side token for Paddle.js (public by design).
+		"PADDLE_CLIENT_TOKEN": "test_bc00da8643d20aa7af512288191"
 	}
 }

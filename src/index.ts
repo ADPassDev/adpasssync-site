@@ -14,7 +14,10 @@ import { loadSession, requireAdmin, requireAuth } from './lib/auth';
 import authRoutes from './routes/auth';
 import portalRoutes from './routes/portal';
 import adminRoutes from './routes/admin';
+import billingRoutes from './routes/billing';
 import downloadsRoutes from './routes/downloads';
+import paddleRoutes from './routes/paddle';
+import contactRoutes from './routes/contact';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -44,14 +47,22 @@ app.use('/api/*', loadSession);
 // Authentication endpoints (no auth required).
 app.route('/api/auth', authRoutes);
 
+// Public contact form on the marketing site (no auth required).
+app.route('/api/contact', contactRoutes);
+
 // Public R2-backed downloads for the pre-built bloom filter. No auth — the
 // bloom only contains hashes of publicly available HIBP data, and the agents
 // fetching it can't authenticate without burning per-install API keys.
 app.route('/downloads', downloadsRoutes);
 
+// Paddle Billing notifications. No session: they're authenticated by their
+// Paddle-Signature header.
+app.route('/api/paddle', paddleRoutes);
+
 // Customer portal — must be signed in.
 const portalApp = new Hono<{ Bindings: Env; Variables: Variables }>();
 portalApp.use('*', requireAuth);
+portalApp.route('/billing', billingRoutes);
 portalApp.route('/', portalRoutes);
 app.route('/api/portal', portalApp);
 

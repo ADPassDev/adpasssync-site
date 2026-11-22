@@ -3,6 +3,7 @@
 import type {
   Customer,
   Download,
+  Entitlement,
   Env,
   License,
   LicenseTier,
@@ -82,19 +83,107 @@ export async function updateCustomerProfile(
     .run();
 }
 
-export async function setCustomerInstallId(
+// ---------------- Installations ----------------
+//
+// customers.install_id is the Install ID ADPassSync generated on first run,
+// registered by the customer. An account has at most one, and the column's
+// UNIQUE constraint stops two accounts registering the same installation.
+
+export type RegisterInstallResult =
+  | { status: 'registered' } // bound to this account now
+  | { status: 'unchanged' } // this account already had exactly this Install ID
+  | { status: 'account_has_other'; install_id: string }
+  | { status: 'taken' }; // another account registered this Install ID
+
+export async function registerInstallId(
   db: D1Database,
   customerId: string,
   installId: string,
-): Promise<void> {
-  await db
+): Promise<RegisterInstallResult> {
+  const owner = await db
+    .prepare('SELECT id FROM customers WHERE install_id = ?1')
+    .bind(installId)
+    .first<{ id: string }>();
+  if (owner) return owner.id === customerId ? { status: 'unchanged' } : { status: 'taken' };
+
+  try {
+    const res = await db
+      .prepare(
+        `UPDATE customers SET install_id = ?2, updated_at = ?3
+          WHERE id = ?1 AND install_id IS NULL`,
+      )
+      .bind(customerId, installId, nowSeconds())
+      .run();
+    if (res.meta.changes) return { status: 'registered' };
+  } catch (e) {
+    // Lost a race with another account registering the same ID.
+    if (String(e).includes('UNIQUE constraint failed')) return { status: 'taken' };
+    throw e;
+  }
+  const row = await db
+    .prepare('SELECT install_id FROM customers WHERE id = ?1')
+    .bind(customerId)
+    .first<{ install_id: string | null }>();
+  if (row?.install_id === installId) return { status: 'unchanged' };
+  if (row?.install_id) return { status: 'account_has_other', install_id: row.install_id };
+  throw new Error(`customer ${customerId} not found`);
+}
+
+/**
+ * Unbinds the customer's installation and revokes their license files, so
+ * they can register a different one. Admin-only: self-service moves would let
+ * one purchase license several sites (an offline license keeps working on the
+ * old installation until it expires).
+ */
+export async function clearInstallation(db: D1Database, customerId: string): Promise<void> {
+  const now = nowSeconds();
+  await db.batch([
+    db
+      .prepare('UPDATE customers SET install_id = NULL, updated_at = ?2 WHERE id = ?1')
+      .bind(customerId, now),
+    db
+      .prepare('UPDATE licenses SET revoked_at = ?2 WHERE customer_id = ?1 AND revoked_at IS NULL')
+      .bind(customerId, now),
+  ]);
+}
+
+// ---------------- Entitlements ----------------
+
+export async function getEntitlement(
+  db: D1Database,
+  customerId: string,
+): Promise<Entitlement | null> {
+  return (
+    (await db
+      .prepare('SELECT * FROM entitlements WHERE customer_id = ?1')
+      .bind(customerId)
+      .first<Entitlement>()) ?? null
+  );
+}
+
+function upsertEntitlementStatement(
+  db: D1Database,
+  customerId: string,
+  e: Omit<Entitlement, 'customer_id' | 'updated_at'>,
+): D1PreparedStatement {
+  return db
     .prepare(
-      `UPDATE customers
-         SET install_id = ?2, updated_at = ?3
-       WHERE id = ?1 AND install_id IS NULL`,
+      `INSERT INTO entitlements (customer_id, tier, max_users, expires_at, source, updated_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+       ON CONFLICT(customer_id) DO UPDATE SET
+         tier = excluded.tier, max_users = excluded.max_users,
+         expires_at = excluded.expires_at, source = excluded.source,
+         updated_at = excluded.updated_at`,
     )
-    .bind(customerId, installId, nowSeconds())
-    .run();
+    .bind(customerId, e.tier, e.max_users, e.expires_at, e.source, nowSeconds());
+}
+
+export async function setEntitlement(
+  db: D1Database,
+  customerId: string,
+  e: Omit<Entitlement, 'customer_id' | 'updated_at'>,
+): Promise<void> {
+  await upsertEntitlementStatement(db, customerId, e).run();
 }
 
 export async function listAllCustomers(db: D1Database): Promise<Customer[]> {
@@ -265,28 +354,33 @@ export async function deleteSessionByTokenHash(
 
 // ---------------- Licenses ----------------
 
-export async function insertLicense(
+/** Stores a newly issued license and revokes the customer's others, atomically. */
+export async function insertLicenseRevokingOthers(
   db: D1Database,
   l: Omit<License, 'downloaded_at' | 'revoked_at'>,
 ): Promise<void> {
-  await db
-    .prepare(
-      `INSERT INTO licenses
-         (id, customer_id, install_id, tier, max_users,
-          issued_at, expires_at, license_json)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
-    )
-    .bind(
-      l.id,
-      l.customer_id,
-      l.install_id,
-      l.tier,
-      l.max_users,
-      l.issued_at,
-      l.expires_at,
-      l.license_json,
-    )
-    .run();
+  await db.batch([
+    db
+      .prepare('UPDATE licenses SET revoked_at = ?2 WHERE customer_id = ?1 AND revoked_at IS NULL')
+      .bind(l.customer_id, l.issued_at),
+    db
+      .prepare(
+        `INSERT INTO licenses
+           (id, customer_id, install_id, tier, max_users,
+            issued_at, expires_at, license_json)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
+      )
+      .bind(
+        l.id,
+        l.customer_id,
+        l.install_id,
+        l.tier,
+        l.max_users,
+        l.issued_at,
+        l.expires_at,
+        l.license_json,
+      ),
+  ]);
 }
 
 export async function getActiveLicenseForCustomer(
@@ -443,6 +537,26 @@ export async function listPurchases(
         .bind(limit);
   const res = await stmt.all<PurchaseWithCustomer>();
   return res.results ?? [];
+}
+
+export async function findPurchaseById(db: D1Database, id: string): Promise<Purchase | null> {
+  return (await db.prepare('SELECT * FROM purchases WHERE id = ?1').bind(id).first<Purchase>()) ?? null;
+}
+
+/** Marks a purchase paid and applies the entitlement it grants, atomically. */
+export async function markPurchasePaid(
+  db: D1Database,
+  purchase: Pick<Purchase, 'id' | 'customer_id'>,
+  entitlement: Omit<Entitlement, 'customer_id' | 'updated_at'> | null,
+): Promise<void> {
+  const markPaid = db
+    .prepare(`UPDATE purchases SET status = 'paid', updated_at = ?2 WHERE id = ?1`)
+    .bind(purchase.id, nowSeconds());
+  await db.batch(
+    entitlement
+      ? [markPaid, upsertEntitlementStatement(db, purchase.customer_id, entitlement)]
+      : [markPaid],
+  );
 }
 
 export async function updatePurchaseStatus(

@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ADPassSync — Self-Service Active Directory Password Management</title>
     <meta name="description" content="ADPassSync provides self-service password reset, MFA enforcement, advanced password policy, breach detection, and LDAP sync for Active Directory. Secure your identity infrastructure, on-premises.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/fonts/inter.css">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -440,12 +438,17 @@
         .form-group textarea { resize: vertical; min-height: 120px; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .form-submit { width: 100%; margin-top: 0.5rem; }
+        .form-submit[disabled] { opacity: 0.6; cursor: default; }
+        .form-status { margin-top: 1rem; font-size: 0.9rem; line-height: 1.5; display: none; }
+        .form-status.show { display: block; }
+        .form-status.ok { color: var(--green); }
+        .form-status.err { color: var(--red); }
 
         /* FOOTER */
         footer { border-top: 1px solid var(--border); padding: 3rem 2rem; }
         .footer-inner { max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
         .footer-text { font-size: 0.85rem; color: var(--text-dim); }
-        .footer-links { display: flex; gap: 1.5rem; }
+        .footer-links { display: flex; gap: 1.5rem; flex-wrap: wrap; }
         .footer-links a { color: var(--text-dim); text-decoration: none; font-size: 0.85rem; }
         .footer-links a:hover { color: var(--text-muted); }
 
@@ -930,21 +933,27 @@
             <div class="pricing-card featured">
                 <div class="pricing-tier pro">Professional</div>
                 <div class="pricing-price">$5<span style="font-size:1rem;font-weight:500;color:var(--text-muted)">/user/year</span></div>
-                <div class="pricing-period">For each user beyond 50, billed annually</div>
+                <div class="pricing-period">For every user once you pass 50, billed annually</div>
                 <ul class="pricing-features">
                     <li>Everything in Free</li>
                     <li>Scale beyond 50 AD users</li>
+                    <li>Full breached-password database</li>
                     <li>Priority support</li>
                     <li>License file deployment via AD</li>
-                    <li>Multi-forest support</li>
                     <li>Custom policy rules</li>
                 </ul>
-                <a href="#contact" class="btn btn-primary" style="width:100%; justify-content:center;">Contact Sales</a>
+                <a href="/portal/" class="btn btn-primary" style="width:100%; justify-content:center;">Sign in to upgrade</a>
             </div>
         </div>
         <p class="section-subtitle" style="text-align:center; margin:2.5rem auto 0; font-size:0.95rem;">
             A <strong>user</strong> is any identity counted as an active Active Directory object &mdash; any account that has a password.
             <a href="#contact" style="color:var(--accent); text-decoration:none;">Contact us</a> for special pricing on non-human accounts (service, machine &amp; shared accounts).
+        </p>
+        <p class="section-subtitle" style="text-align:center; margin:1rem auto 0; font-size:0.85rem;">
+            Prices in US dollars, plus applicable taxes. Professional renews every year until you cancel, with a
+            <a href="/legal/refund-policy.html" style="color:var(--accent); text-decoration:none;">30-day money-back guarantee</a>.
+            Orders are processed by our reseller, Paddle.com, under our
+            <a href="/legal/terms.html" style="color:var(--accent); text-decoration:none;">Terms of Sale</a>.
         </p>
     </div>
 </section>
@@ -958,11 +967,8 @@
             <p class="section-subtitle">Questions about ADPassSync? Want to discuss pricing for your organization? We'd love to hear from you.</p>
         </div>
         <div class="contact-card">
-            <form id="contactForm" action="https://formsubmit.co/pidclawbot@gmail.com" method="POST">
-                <input type="hidden" name="_subject" value="ADPassSync Website Inquiry">
-                <input type="hidden" name="_captcha" value="false">
-                <input type="hidden" name="_next" value="https://adpasssync.pages.dev/#contact">
-                <input type="text" name="_honey" style="display:none">
+            <form id="contactForm" method="POST" action="/api/contact">
+                <input type="text" name="_honey" tabindex="-1" autocomplete="off" aria-hidden="true" style="display:none">
                 <div class="form-row">
                     <div class="form-group">
                         <label for="name">Name</label>
@@ -1006,46 +1012,31 @@
                     <textarea id="message" name="message" placeholder="Tell us about your environment and what you're looking for..."></textarea>
                 </div>
                 <button type="submit" class="btn btn-primary form-submit">Send Message &#8594;</button>
+                <p class="form-status" id="contactStatus" role="status" aria-live="polite"></p>
             </form>
         </div>
+        <p class="section-subtitle" style="text-align:center; margin:2rem auto 0; font-size:0.9rem;">
+            Or email <a href="mailto:sales@adargus.com" style="color:var(--accent); text-decoration:none;">sales@adargus.com</a><br>
+            AD Argus Cybersecurity Corporation &middot; 136 Lynx Pl., Princeton, BC V0X 1W0, Canada
+        </p>
     </div>
 </section>
 
 <footer>
     <div class="footer-inner">
-        <div class="footer-text">&copy; 2026 ADPassSync. All rights reserved.</div>
+        <div class="footer-text">&copy; 2026 AD Argus Cybersecurity Corporation. All rights reserved.</div>
         <div class="footer-links">
             <a href="#features">Features</a>
-            <a href="#architecture">Architecture</a>
             <a href="#pricing">Pricing</a>
             <a href="#contact">Contact</a>
+            <a href="/legal/terms.html">Terms of Sale</a>
+            <a href="/legal/refund-policy.html">Refund Policy</a>
+            <a href="/legal/privacy.html">Privacy</a>
             <a href="/legal/eula.html">EULA</a>
         </div>
     </div>
 </footer>
 
-<script>
-(function(){
-  var toggle = document.getElementById('navToggle');
-  var links = document.querySelector('.nav-links');
-  if (!toggle || !links) return;
-  toggle.addEventListener('click', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    links.classList.toggle('open');
-    toggle.setAttribute('aria-expanded', links.classList.contains('open'));
-  });
-  // Close menu when a nav link is tapped
-  links.querySelectorAll('a').forEach(function(a) {
-    a.addEventListener('click', function() { links.classList.remove('open'); });
-  });
-  // Close menu when tapping outside
-  document.addEventListener('click', function(e) {
-    if (!links.contains(e.target) && e.target !== toggle) {
-      links.classList.remove('open');
-    }
-  });
-})();
-</script>
+<script src="/js/site.js" defer></script>
 </body>
 </html>
