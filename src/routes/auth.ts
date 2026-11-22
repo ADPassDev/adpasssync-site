@@ -27,6 +27,21 @@ import { isValidEmail, sendMagicLinkEmail } from '../lib/email';
 
 const auth = new Hono<{ Bindings: Env; Variables: Variables }>();
 
+// Where to land after sign-in when a portal page asked for it, e.g.
+// /portal/register?install_id=… opened from the product's License page.
+// It ends up in a redirect, so only same-site portal paths are accepted.
+const NEXT_RE = /^\/portal\/[A-Za-z0-9._\/-]*(\?[A-Za-z0-9._~%&=-]*)?$/;
+
+export function safeNext(raw: unknown): string | null {
+  if (typeof raw !== 'string' || raw.length > 300) return null;
+  if (!NEXT_RE.test(raw) || raw.includes('//') || raw.includes('..')) return null;
+  return raw;
+}
+
+function withNext(path: string, next: string | null): string {
+  return next ? `${path}${path.includes('?') ? '&' : '?'}next=${encodeURIComponent(next)}` : path;
+}
+
 auth.post('/login', async (c) => {
   let body: unknown;
   try {
@@ -34,7 +49,7 @@ auth.post('/login', async (c) => {
   } catch {
     return c.json({ error: 'invalid_json' }, 400);
   }
-  const email = (body as { email?: unknown })?.email;
+  const { email, next: rawNext } = (body ?? {}) as { email?: unknown; next?: unknown };
   if (typeof email !== 'string' || !isValidEmail(email)) {
     return c.json({ error: 'invalid_email' }, 400);
   }
@@ -44,7 +59,10 @@ auth.post('/login', async (c) => {
   const tokenHash = await sha256Hex(rawToken);
   await createMagicLink(c.env.DB, tokenHash, normalized, magicLinkTtlMinutes(c.env));
 
-  const link = `${c.env.PUBLIC_BASE_URL}/api/auth/verify?token=${rawToken}`;
+  const link = withNext(
+    `${c.env.PUBLIC_BASE_URL}/api/auth/verify?token=${rawToken}`,
+    safeNext(rawNext),
+  );
   await sendMagicLinkEmail(c.env, normalized, link);
 
   // For local dev / tests, return the link in the response so the magic-link
@@ -58,23 +76,24 @@ auth.post('/login', async (c) => {
 });
 
 auth.get('/verify', async (c) => {
+  const next = safeNext(c.req.query('next'));
   const token = c.req.query('token');
   if (!token || typeof token !== 'string' || token.length < 32) {
-    return c.redirect('/portal/?error=invalid_link', 302);
+    return c.redirect(withNext('/portal/?error=invalid_link', next), 302);
   }
   const tokenHash = await sha256Hex(token);
   const consumed = await consumeMagicLink(c.env.DB, tokenHash);
   if (!consumed) {
-    return c.redirect('/portal/?error=expired_link', 302);
+    return c.redirect(withNext('/portal/?error=expired_link', next), 302);
   }
 
   const customer = await getOrCreateCustomerByEmail(c.env.DB, consumed.email);
   await issueSession(c, customer.id);
 
-  // Admins land on the admin page; regular customers on the dashboard.
-  const dest = isAdminEmail(c.env, customer.email)
-    ? '/portal/admin.html'
-    : '/portal/dashboard.html';
+  // A page that sent the customer to sign in gets them back; otherwise admins
+  // land on the admin page and customers on the dashboard.
+  const dest =
+    next ?? (isAdminEmail(c.env, customer.email) ? '/portal/admin.html' : '/portal/dashboard.html');
   return c.redirect(dest, 302);
 });
 

@@ -11,6 +11,7 @@ type EmailMessage = {
   subject: string;
   text: string;
   html?: string;
+  replyTo?: string;
 };
 
 async function sendViaResend(env: Env, msg: EmailMessage): Promise<SendResult> {
@@ -29,6 +30,7 @@ async function sendViaResend(env: Env, msg: EmailMessage): Promise<SendResult> {
       subject: msg.subject,
       text: msg.text,
       ...(msg.html ? { html: msg.html } : {}),
+      ...(msg.replyTo ? { reply_to: msg.replyTo } : {}),
     }),
   });
   if (!res.ok) {
@@ -37,6 +39,13 @@ async function sendViaResend(env: Env, msg: EmailMessage): Promise<SendResult> {
     throw new Error(`email send failed: ${res.status}`);
   }
   return { sent: true, provider: 'resend' };
+}
+
+function parseRecipients(raw: string | undefined): string[] {
+  return (raw ?? '')
+    .split(',')
+    .map((e) => e.trim())
+    .filter(Boolean);
 }
 
 export async function sendMagicLinkEmail(
@@ -60,21 +69,21 @@ export async function sendMagicLinkEmail(
 }
 
 /**
- * Notify each address in env.ADMIN_EMAILS that a customer submitted a quote
- * request. Best-effort — caller should wrap in waitUntil so a flaky email
- * provider doesn't fail the user-facing request.
+ * Notify each address in env.PURCHASE_NOTIFY_EMAILS that a customer submitted
+ * a quote request. Deliberately not ADMIN_EMAILS: that is the portal admin
+ * identity (see isAdminEmail) and need not be a deliverable mailbox.
+ *
+ * Best-effort — caller should wrap in waitUntil so a flaky email provider
+ * doesn't fail the user-facing request.
  */
 export async function sendPurchaseAlertEmail(
   env: Env,
   purchase: Purchase,
   customer: Customer,
 ): Promise<SendResult> {
-  const recipients = (env.ADMIN_EMAILS ?? '')
-    .split(',')
-    .map((e) => e.trim())
-    .filter(Boolean);
+  const recipients = parseRecipients(env.PURCHASE_NOTIFY_EMAILS);
   if (!recipients.length) {
-    console.log('[purchase-alert] ADMIN_EMAILS is empty, skipping');
+    console.log('[purchase-alert] PURCHASE_NOTIFY_EMAILS is empty, skipping');
     return { sent: false, provider: 'noop' };
   }
 
@@ -119,6 +128,118 @@ export async function sendPurchaseAlertEmail(
     return sendViaResend(env, { to: recipients, subject, text, html });
   }
   console.log('[dev] purchase alert (no RESEND_API_KEY):\n' + text);
+  return { sent: false, provider: 'noop' };
+}
+
+/**
+ * Tell a customer their purchase is active. `licenseIssued` says whether a
+ * license file for their registered installation is already waiting in the
+ * portal, or whether they still need to register one. Best-effort, like the
+ * purchase alert.
+ */
+export async function sendLicenseReadyEmail(
+  env: Env,
+  customer: Customer,
+  entitlement: { tier: string; max_users: number; expires_at: number | null },
+  licenseIssued: boolean,
+): Promise<SendResult> {
+  const dashboard = `${env.PUBLIC_BASE_URL.replace(/\/+$/, '')}/portal/dashboard.html`;
+  const tier = entitlement.tier.charAt(0).toUpperCase() + entitlement.tier.slice(1);
+  const users = entitlement.max_users === 0 ? 'unlimited AD users' : `${entitlement.max_users} AD users`;
+  const until = entitlement.expires_at
+    ? ` until ${new Date(entitlement.expires_at * 1000).toISOString().slice(0, 10)}`
+    : '';
+  const subject = licenseIssued ? 'Your ADPassSync license is ready' : 'Your ADPassSync purchase is active';
+  const text = [
+    `Your ADPassSync ${tier} license for ${users} is active${until}.`,
+    ``,
+    ...(licenseIssued
+      ? [
+          `Download license.json from your portal and upload it on the License page`,
+          `of the ADPassSync admin console:`,
+        ]
+      : [
+          `To get your license file, open the License page in the ADPassSync admin`,
+          `console and click "Get a license", or enter your installation's Install ID`,
+          `on your portal dashboard:`,
+        ]),
+    ``,
+    dashboard,
+    ``,
+    `Your plan includes the full breached-password database. Your key for it is`,
+    `on the same dashboard page.`,
+    ``,
+  ].join('\n');
+
+  if (env.RESEND_API_KEY) {
+    return sendViaResend(env, { to: customer.email, subject, text });
+  }
+  console.log(`[dev] license email for ${customer.email} (no RESEND_API_KEY):\n` + text);
+  return { sent: false, provider: 'noop' };
+}
+
+/**
+ * A submission from the public contact form on the marketing site. Every field
+ * is attacker-controlled — the route validates and truncates before we get here.
+ */
+export type ContactSubmission = {
+  name: string;
+  email: string;
+  company: string | null;
+  adUsers: string | null;
+  interest: string | null;
+  message: string | null;
+};
+
+/**
+ * Notify each address in env.CONTACT_NOTIFY_EMAILS that someone filled in the
+ * contact form. Reply-To is the submitter, so replying from the inbox goes
+ * straight back to them rather than to the no-reply From address.
+ *
+ * Best-effort — the caller wraps this in waitUntil so a flaky provider never
+ * fails the visitor's request.
+ */
+export async function sendContactEmail(
+  env: Env,
+  sub: ContactSubmission,
+): Promise<SendResult> {
+  const recipients = parseRecipients(env.CONTACT_NOTIFY_EMAILS);
+  if (!recipients.length) {
+    console.log('[contact] CONTACT_NOTIFY_EMAILS is empty, skipping');
+    return { sent: false, provider: 'noop' };
+  }
+
+  const subjectTag = sub.company || sub.name || sub.email;
+  const subject = `[ADPassSync] Contact — ${subjectTag}`;
+
+  const text = [
+    `A new enquiry was submitted through the contact form on adpasssync.com.`,
+    ``,
+    `Name:      ${sub.name}`,
+    `Email:     ${sub.email}`,
+    `Company:   ${sub.company || '—'}`,
+    `AD users:  ${sub.adUsers || '—'}`,
+    `Interest:  ${sub.interest || '—'}`,
+    ``,
+    `Message:`,
+    sub.message ? sub.message : '(none)',
+    ``,
+    `Reply directly to this email to reach ${sub.email}.`,
+    ``,
+  ].join('\n');
+
+  const html = renderContactHtml(sub);
+
+  if (env.RESEND_API_KEY) {
+    return sendViaResend(env, {
+      to: recipients,
+      subject,
+      text,
+      html,
+      replyTo: sub.email,
+    });
+  }
+  console.log('[dev] contact form (no RESEND_API_KEY):\n' + text);
   return { sent: false, provider: 'noop' };
 }
 
@@ -205,6 +326,45 @@ function renderPurchaseAlertHtml(v: PurchaseAlertView): string {
            style="display:inline-block;background:#3b82f6;color:#ffffff;
                   padding:10px 18px;border-radius:8px;font-weight:600;
                   text-decoration:none;font-size:14px">Open admin portal</a>
+      </p>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
+function renderContactHtml(v: ContactSubmission): string {
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:6px 12px 6px 0;color:#64748b;white-space:nowrap;font-size:13px">${escapeHtml(label)}</td>` +
+    `<td style="padding:6px 0;color:#0f172a;font-size:14px">${escapeHtml(value)}</td></tr>`;
+  const safeMessage = v.message
+    ? `<p style="margin:0 0 16px;white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;font-size:14px;line-height:1.5">${escapeHtml(v.message)}</p>`
+    : `<p style="margin:0 0 16px;color:#94a3b8;font-size:14px">(no message)</p>`;
+  const safeEmail = escapeHtml(v.email);
+  return `<!doctype html>
+<html><body style="font-family:system-ui,Segoe UI,Helvetica,Arial,sans-serif;
+                   background:#f6f7fb;margin:0;padding:32px;color:#0f172a">
+  <table role="presentation" width="100%" style="max-width:560px;margin:0 auto;
+        background:#ffffff;border-radius:12px;padding:32px;
+        box-shadow:0 1px 2px rgba(15,23,42,0.06)">
+    <tr><td>
+      <h1 style="font-size:18px;margin:0 0 8px">New contact enquiry</h1>
+      <p style="margin:0 0 20px;color:#475569;font-size:14px">
+        Someone submitted the contact form on adpasssync.com.
+      </p>
+      <table role="presentation" style="border-collapse:collapse;margin:0 0 20px">
+        ${row('Name', v.name)}
+        ${row('Email', v.email)}
+        ${row('Company', v.company || '—')}
+        ${row('AD users', v.adUsers || '—')}
+        ${row('Interest', v.interest || '—')}
+      </table>
+      <h2 style="font-size:13px;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8px">Message</h2>
+      ${safeMessage}
+      <p style="margin:0">
+        <a href="mailto:${safeEmail}"
+           style="display:inline-block;background:#3b82f6;color:#ffffff;
+                  padding:10px 18px;border-radius:8px;font-weight:600;
+                  text-decoration:none;font-size:14px">Reply to ${safeEmail}</a>
       </p>
     </td></tr>
   </table>
