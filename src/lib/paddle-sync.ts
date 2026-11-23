@@ -7,7 +7,7 @@
 // The rules themselves (cancellation keeps the paid term, refunds end it) are
 // in billing.ts.
 
-import type { Customer, Env } from '../types';
+import type { Customer, Env, WaitUntilContext } from '../types';
 import {
   MIN_PAID_USERS,
   billingOpenTo,
@@ -48,7 +48,7 @@ type PaddleAdjustment = {
   updated_at: string;
 };
 
-export async function handlePaddleEvent(env: Env, ctx: ExecutionContext, event: PaddleEvent): Promise<void> {
+export async function handlePaddleEvent(env: Env, ctx: WaitUntilContext, event: PaddleEvent): Promise<void> {
   if (event.event_type.startsWith('subscription.')) {
     await onSubscription(env, ctx, event.data as unknown as PaddleSubscription);
   } else if (event.event_type === 'transaction.completed') {
@@ -80,7 +80,7 @@ const UPSERT_SUBSCRIPTION = `
     paddle_updated_ms = MAX(excluded.paddle_updated_ms, paddle_subscriptions.paddle_updated_ms),
     updated_at     = excluded.updated_at`;
 
-async function onSubscription(env: Env, ctx: ExecutionContext, sub: PaddleSubscription): Promise<void> {
+async function onSubscription(env: Env, ctx: WaitUntilContext, sub: PaddleSubscription): Promise<void> {
   const customer = await recordSubscription(env, sub);
   if (customer) await refreshEntitlement(env, ctx, customer);
 }
@@ -100,7 +100,7 @@ async function recordSubscription(env: Env, sub: PaddleSubscription): Promise<Cu
 }
 
 // A completed payment for a subscription covers its billing period.
-async function onTransactionCompleted(env: Env, ctx: ExecutionContext, txn: PaddleTransaction): Promise<void> {
+async function onTransactionCompleted(env: Env, ctx: WaitUntilContext, txn: PaddleTransaction): Promise<void> {
   const paidThrough = toUnixSeconds(txn.billing_period?.ends_at);
   if (!txn.subscription_id || paidThrough === null) return;
   const customer = await resolveCustomer(env, txn.custom_data, txn.customer_id ?? null);
@@ -123,7 +123,7 @@ async function onTransactionCompleted(env: Env, ctx: ExecutionContext, txn: Padd
 // reversed chargeback (the payment stands after all) restores a term that a
 // chargeback ended, though the subscription stays cancelled. Credits (e.g. for
 // fewer users) don't touch the term.
-async function onAdjustment(env: Env, ctx: ExecutionContext, adj: PaddleAdjustment): Promise<void> {
+async function onAdjustment(env: Env, ctx: WaitUntilContext, adj: PaddleAdjustment): Promise<void> {
   if (adj.status !== 'approved' || !adj.subscription_id) return;
   const ends = adj.action === 'refund' || adj.action === 'chargeback';
   const restores = adj.action === 'chargeback_reverse';
@@ -190,7 +190,7 @@ async function onAdjustment(env: Env, ctx: ExecutionContext, adj: PaddleAdjustme
  * or keep a paid term (first payment, renewal, new user count), not when it
  * ends.
  */
-async function refreshEntitlement(env: Env, ctx: ExecutionContext, customer: Customer): Promise<void> {
+async function refreshEntitlement(env: Env, ctx: WaitUntilContext, customer: Customer): Promise<void> {
   const subs = await env.DB.prepare(
     'SELECT id, quantity, paid_through, refunded_at FROM paddle_subscriptions WHERE customer_id = ?1',
   )

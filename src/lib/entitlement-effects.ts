@@ -3,7 +3,7 @@
 // file for their registered installation, their full bloom filter key brought
 // in line, and, if asked, an email saying the license is ready.
 
-import type { Customer, Env, License } from '../types';
+import type { Customer, Env, License, WaitUntilContext } from '../types';
 import { getEntitlement } from './db';
 import { effectiveEntitlement, issueLicense } from './license';
 import { syncHashDbKey } from './hashdb-key';
@@ -11,7 +11,7 @@ import { sendLicenseReadyEmail } from './email';
 
 export async function applyEntitlementChange(
   env: Env,
-  ctx: ExecutionContext,
+  ctx: WaitUntilContext,
   customer: Customer,
   opts: { notify: boolean },
 ): Promise<{ license: License | null; licenseError: string | null }> {

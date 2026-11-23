@@ -11,7 +11,7 @@
 //
 // latest.json is uploaded last, so every file it names is already in place.
 
-import type { Env } from '../types';
+import type { Env, WaitUntilContext } from '../types';
 import {
   ZIP_TAIL_BYTES,
   planZipAppend,
@@ -161,7 +161,7 @@ export async function openLatestReleasePackage(env: Env): Promise<ReleasePackage
  */
 export async function streamReleasePackage(
   env: Env,
-  ctx: ExecutionContext,
+  ctx: WaitUntilContext,
   pkg: ReleasePackage,
   additions: ZipEntryInput[],
   now: Date,

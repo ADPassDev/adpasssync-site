@@ -40,6 +40,12 @@ export type Env = {
   HASHDB_LICENSES?: D1Database;
 };
 
+// The part of the Workers ExecutionContext our helpers use. Hono types
+// c.executionCtx with its own, smaller interface than the global one from
+// @cloudflare/workers-types (v5 added mapVirtualHost, tracing and abort), so
+// helpers that take c.executionCtx ask for only waitUntil.
+export type WaitUntilContext = Pick<ExecutionContext, 'waitUntil'>;
+
 // Hono Variables — values stashed onto the request context by middleware.
 export type Variables = {
   customer?: Customer;
