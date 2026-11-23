@@ -406,7 +406,8 @@ function readmeText(args: {
     'Getting started',
     '---------------',
     'Start with the Quick Start Guide. The Administrator Guide covers',
-    'deployment, configuration and licensing in full.',
+    'deployment, configuration and licensing in full. To watch a complete',
+    'installation first (about five minutes): https://adpasssync.com/support/',
     ...(credProv
       ? [
           '',

@@ -63,7 +63,7 @@
         .nav-links { display: flex; gap: 2rem; align-items: center; }
         .nav-links a {
             color: var(--text-muted); text-decoration: none; font-size: 0.9rem;
-            font-weight: 500; transition: color 0.2s;
+            font-weight: 500; transition: color 0.2s; white-space: nowrap;
         }
         .nav-links a:hover { color: var(--text); }
         .nav-cta {
@@ -120,6 +120,18 @@
         }
         .hero-trust span { display: inline-flex; align-items: center; gap: 0.4rem; }
         .hero-trust span::before { content: '\2713'; color: var(--green); font-weight: 700; }
+        .hero-watch {
+            display: inline-flex; align-items: center; gap: 0.6rem; margin-top: 1.75rem;
+            color: var(--accent-hover); font-size: 0.95rem; font-weight: 500;
+            text-decoration: none; position: relative;
+        }
+        .hero-watch:hover { color: var(--text); }
+        .hero-watch .play {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 1.9rem; height: 1.9rem; border-radius: 50%; font-size: 0.7rem;
+            background: var(--accent-glow); border: 1px solid rgba(59, 130, 246, 0.4);
+            padding-left: 0.12rem;
+        }
         .btn {
             display: inline-flex; align-items: center; gap: 0.5rem;
             padding: 0.85rem 2rem; border-radius: 10px;
@@ -454,6 +466,16 @@
 
         /* MOBILE NAV */
         .nav-toggle { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; padding: 0.5rem; z-index: 101; -webkit-tap-highlight-color: transparent; }
+        /* The links need about 1,060px on one line at the 2rem gap and 975px at
+           1.25rem; below that they collapse behind the toggle. */
+        @media (max-width: 1100px) {
+            .nav-links { gap: 1.25rem; }
+        }
+        @media (max-width: 1000px) {
+            .nav-links { display: none !important; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: rgba(10, 14, 26, 0.98); border-bottom: 1px solid var(--border); padding: 1rem 2rem; gap: 1rem; z-index: 100; }
+            .nav-links.open { display: flex !important; }
+            .nav-toggle { display: block; }
+        }
         @media (max-width: 880px) {
             .feature-row { grid-template-columns: 1fr; gap: 2rem; }
             .feature-row.reversed .feature-copy { order: 1; }
@@ -461,9 +483,6 @@
             .feature-row + .feature-row { margin-top: 4.5rem; }
         }
         @media (max-width: 768px) {
-            .nav-links { display: none !important; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: rgba(10, 14, 26, 0.98); border-bottom: 1px solid var(--border); padding: 1rem 2rem; gap: 1rem; z-index: 100; }
-            .nav-links.open { display: flex !important; }
-            .nav-toggle { display: block; }
             .hero { padding: 8rem 1.5rem 4rem; }
             .arch-diagram { padding: 1.5rem; }
             .form-row { grid-template-columns: 1fr; }
@@ -487,6 +506,7 @@
             <a href="#security">Security</a>
             <a href="#pricing">Pricing</a>
             <a href="/demo/">Live Demo</a>
+            <a href="/support/">Support</a>
             <a href="/portal/">Sign in</a>
             <a href="/portal/" class="nav-cta">Get Started Free</a>
         </div>
@@ -509,6 +529,7 @@
         <span>No cloud dependency</span>
         <span>Deploys in under an hour</span>
     </div>
+    <a href="/support/#installation" class="hero-watch"><span class="play" aria-hidden="true">&#9654;</span> Watch the 5-minute installation walkthrough</a>
 </section>
 
 <!-- PRODUCT OVERVIEW -->
@@ -1028,6 +1049,7 @@
         <div class="footer-links">
             <a href="#features">Features</a>
             <a href="#pricing">Pricing</a>
+            <a href="/support/">Support</a>
             <a href="#contact">Contact</a>
             <a href="/legal/terms.html">Terms of Sale</a>
             <a href="/legal/refund-policy.html">Refund Policy</a>

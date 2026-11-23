@@ -1,4 +1,5 @@
-// Unit tests for src/routes/downloads.ts, run against a mock R2 bucket.
+// Unit tests for src/routes/downloads.ts (and the src/lib/r2-serve.ts logic
+// behind it), run against a mock R2 bucket (test/r2-mock.ts).
 //
 //   npm test
 //
@@ -11,62 +12,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import downloadsRoutes from '../src/routes/downloads.ts';
-
-type Version = { etag: string; bytes: Uint8Array; uploaded: Date };
-type Store = { cur: Version | null };
-type GetOptions = { range?: { offset: number; length: number }; onlyIf?: { etagMatches?: string } };
-
-function version(etag: string, text: string, uploaded: string): Version {
-  return { etag, bytes: new TextEncoder().encode(text), uploaded: new Date(uploaded) };
-}
+import { mockBucket, version, type Store, type Version } from './r2-mock.ts';
 
 const BODY = 'version-one-0123456789'; // 22 bytes
 const V1 = version('aaaa', BODY, '2026-11-01T00:00:00Z');
 const V2 = version('bbbb', 'VERSION-TWO-abcdefghijklmnop', '2026-11-02T00:00:00Z'); // 28 bytes
-
-// Stands in for the HASHDB_BUCKET binding and records each call. afterHead
-// runs after every head() and may replace or delete the stored object, which
-// simulates a publish landing mid-request.
-function mockBucket(initial: Version | null, afterHead?: (n: number, store: Store) => void) {
-  const store: Store = { cur: initial };
-  const calls: string[] = [];
-  const keys: string[] = [];
-  let heads = 0;
-  const meta = (key: string, v: Version) => ({
-    key,
-    etag: v.etag,
-    httpEtag: `"${v.etag}"`,
-    size: v.bytes.length,
-    uploaded: v.uploaded,
-  });
-  const bucket = {
-    async head(key: string) {
-      calls.push('head');
-      keys.push(key);
-      const v = store.cur;
-      afterHead?.(++heads, store);
-      return v ? meta(key, v) : null;
-    },
-    async get(key: string, opts: GetOptions = {}) {
-      const v = store.cur;
-      const pin = opts.onlyIf?.etagMatches;
-      calls.push(opts.range ? (pin ? 'get(range, pinned)' : 'get(range)') : 'get');
-      keys.push(key);
-      if (!v) return null;
-      // Real R2 throws on a quoted ETag in onlyIf and on an offset past the end.
-      if (pin?.startsWith('"')) throw new Error('Conditional ETag should not be wrapped in quotes');
-      if (pin !== undefined && pin !== v.etag) return meta(key, v); // precondition failed: no body
-      let bytes = v.bytes;
-      if (opts.range) {
-        const { offset, length } = opts.range;
-        if (offset >= v.bytes.length) throw new Error('get: The requested range is not satisfiable (10039)');
-        bytes = v.bytes.slice(offset, offset + length);
-      }
-      return { ...meta(key, v), body: new Response(bytes).body };
-    },
-  };
-  return { bucket, calls, keys };
-}
 
 const ENV_KEYS = {
   HASHDB_BLOOM_KEY: 'current/hashdb.bin',
