@@ -183,7 +183,7 @@
 
   // Password policy mirrors the product's local-policy rules: length + character
   // classes. The breached-password corpus check runs only in the installed
-  // product (offline, against a local 2B+ hash database) and is intentionally
+  // product (offline, against a local blocklist) and is intentionally
   // NOT performed in this online demo, so it isn't part of these results.
   // Returns rule results, a 0-4 strength score, and whether all rules pass.
   function checkPassword(pw) {

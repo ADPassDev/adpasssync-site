@@ -69,10 +69,6 @@
     const plan = document.getElementById('plan-block');
     const show = function (id, on) { document.getElementById(id).classList.toggle('hidden', !on); };
 
-    const keyCard = document.getElementById('hashdb-card');
-    keyCard.classList.toggle('hidden', !b.hashdb_key);
-    document.getElementById('hashdb-key').textContent = b.hashdb_key || '';
-
     let html;
     if (sub && sub.live) {
       const yearly = money(sub.quantity * UNIT_PRICE_USD);

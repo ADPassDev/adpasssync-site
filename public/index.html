@@ -538,7 +538,7 @@
         <div class="section-header center">
             <div class="section-label">Overview</div>
             <h2 class="section-title">One platform for the entire password lifecycle</h2>
-            <p class="section-subtitle">ADPassSync intercepts password changes right at the domain controller, enforces your policy, checks for breaches, and gives users a secure self-service reset portal with MFA — without ever sending credentials to the cloud.</p>
+            <p class="section-subtitle">ADPassSync checks password changes right at the domain controller, enforces your policy, blocks breached passwords, and gives users a secure self-service reset portal with MFA — without ever sending credentials to the cloud.</p>
         </div>
         <div class="arch-diagram">
             <div class="arch-flow">
@@ -719,16 +719,16 @@
                         <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
                     </div>
                     <div class="bloom-verdict"><span>&#9888;</span> Match found &mdash; password seen in known breaches. Rejected.</div>
-                    <div class="bloom-stat"><b>2B+</b><small>compromised passwords checked in-memory, in microseconds</small></div>
+                    <div class="bloom-stat"><b>800M+</b><small>compromised passwords checked in-memory, in microseconds</small></div>
                 </div>
             </div>
             <div class="feature-copy">
                 <div class="feature-badge red">&#128680;</div>
                 <div class="eyebrow">Breached Password Detection</div>
                 <h3>Stop compromised passwords at the door</h3>
-                <p>Every new password is checked against a bloom filter of over 2 billion credentials exposed in public breaches — in real time, entirely offline. No password or hash ever leaves your network.</p>
+                <p>New passwords are checked against a blocklist built from over 800 million passwords exposed in public breaches — in real time, entirely offline. The blocklist is a Bloom filter that contains no passwords, and no password or hash ever leaves your network.</p>
                 <ul class="feature-list">
-                    <li><span class="check">&#10003;</span><span><strong>2B+ known-compromised passwords</strong> <span class="txt">— sourced from public breach corpora.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>800M+ known-compromised passwords</strong> <span class="txt">— from the public Have I Been Pwned list.</span></span></li>
                     <li><span class="check">&#10003;</span><span><strong>Real-time blocking</strong> <span class="txt">— rejected before the change reaches AD.</span></span></li>
                     <li><span class="check">&#10003;</span><span><strong>Fully offline</strong> <span class="txt">— in-memory bloom filter, no external API calls.</span></span></li>
                     <li><span class="check">&#10003;</span><span><strong>Regularly refreshed</strong> <span class="txt">— update the dataset as new breaches surface.</span></span></li>
@@ -775,14 +775,14 @@
         <div class="section-header center">
             <div class="section-label">Architecture &amp; Security</div>
             <h2 class="section-title">Security isn't a feature — it's the foundation</h2>
-            <p class="section-subtitle">ADPassSync deploys as a distributed pipeline across your AD infrastructure. Passwords are envelope-encrypted at the domain controller and never appear in plaintext anywhere downstream.</p>
+            <p class="section-subtitle">ADPassSync deploys as a distributed pipeline across your AD infrastructure. Password changes are envelope-encrypted at the domain controller, and only the central service you run can decrypt them.</p>
         </div>
         <div class="arch-diagram">
             <div class="pipeline">
                 <div class="pipe-node">
                     <div class="pi">&#128451;</div>
                     <div class="pl">Password Filter DLL</div>
-                    <div class="pd">lsass.exe on each DC</div>
+                    <div class="pd">Runs on each DC</div>
                 </div>
                 <div class="pipe-link"><span class="a">&#8594;</span><span class="lbl">named pipe</span></div>
                 <div class="pipe-node">
@@ -804,13 +804,13 @@
                 </div>
             </div>
             <div class="arch-note">
-                Passwords are envelope-encrypted on the DC (AES-256-GCM + RSA-OAEP). The relay only ever forwards encrypted blobs — it never holds a key.
+                Password changes are envelope-encrypted on the DC (AES-256-GCM + RSA-OAEP). The relay forwards them still encrypted and holds no key to them.
             </div>
         </div>
         <div id="security" class="security-grid">
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
-                <div><h4>Envelope Encryption</h4><p>AES-256-GCM + RSA-OAEP. Credentials are encrypted on the DC and only decrypted by the central service.</p></div>
+                <div><h4>Envelope Encryption</h4><p>AES-256-GCM + RSA-OAEP. Password changes are encrypted on the DC and only decrypted by the central service.</p></div>
             </div>
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
@@ -818,7 +818,7 @@
             </div>
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
-                <div><h4>Zero Plaintext</h4><p>The relay forwards encrypted blobs. No intermediate component ever sees the password.</p></div>
+                <div><h4>Encrypted in Transit</h4><p>Password changes sent for sync stay sealed until they reach the central service. Portal resets travel over mutual TLS to the relay, which sets the new password in AD over LDAPS.</p></div>
             </div>
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
@@ -934,7 +934,7 @@
         <div class="section-header center">
             <div class="section-label">Pricing</div>
             <h2 class="section-title">Start free. Scale when you're ready.</h2>
-            <p class="section-subtitle">Full functionality for up to 50 Active Directory users. No credit card required.</p>
+            <p class="section-subtitle">Free for up to 50 Active Directory users. No credit card required.</p>
         </div>
         <div class="pricing-grid">
             <div class="pricing-card">
@@ -958,7 +958,6 @@
                 <ul class="pricing-features">
                     <li>Everything in Free</li>
                     <li>Scale beyond 50 AD users</li>
-                    <li>Full breached-password database</li>
                     <li>Priority support</li>
                     <li>License file deployment via AD</li>
                     <li>Custom policy rules</li>
