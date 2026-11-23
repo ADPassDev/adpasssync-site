@@ -105,6 +105,10 @@
         <a id="download-btn" class="btn btn-primary" href="/api/portal/download">
           Download ADPassSync
         </a>
+        <p class="muted" style="margin-top:1rem; line-height:1.5;">
+          New to ADPassSync? <a href="/support/#installation">Watch the 5-minute installation walkthrough</a>,
+          from this download to a running, licensed deployment.
+        </p>
       </section>
 
       <section class="card">
@@ -123,7 +127,7 @@
           <p class="muted" style="margin-bottom:1rem; line-height:1.5;">
             Up to 50 active AD users are free. Past that, Professional is <strong>$5 per active AD
             user per year for all of your users</strong>, billed annually and renewed automatically.
-            It includes the full breached-password database and priority support.
+            It includes priority support.
           </p>
           <div class="form-row">
             <label for="buy-users">Active AD users to license</label>
@@ -188,22 +192,12 @@
           <button type="submit" class="btn btn-primary" id="purchase-btn">Request quote</button>
         </form>
       </section>
-
-      <section class="card hidden" id="hashdb-card">
-        <h2>Full breached-password database</h2>
-        <p class="muted" style="margin-bottom:1rem; line-height:1.5;">
-          Your plan includes the full database. Enter this key in ADPassSync's Compromised Database
-          tool (<strong>Edit license…</strong>), or save it as
-          <span class="mono">C:\ProgramData\ADPassSync\license.key</span> on each server that
-          downloads it. It works while your paid term lasts.
-        </p>
-        <p id="hashdb-key" class="mono" style="word-break:break-all"></p>
-      </section>
     </div>
   </main>
 
   <footer>
     <p>&copy; <span id="year"></span> AD Argus Cybersecurity Corporation. <a href="/">adpasssync.com</a>
+      &middot; <a href="/support/">Support</a>
       &middot; <a href="/legal/terms.html">Terms of Sale</a>
       &middot; <a href="/legal/refund-policy.html">Refund Policy</a>
       &middot; <a href="/legal/privacy.html">Privacy</a>

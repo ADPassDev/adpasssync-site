@@ -15,7 +15,8 @@
 		"binding": "ASSETS",
 		"run_worker_first": [
 			"/api/*",
-			"/downloads/*"
+			"/downloads/*",
+			"/media/*"
 		]
 	},
 	"observability": {
@@ -48,6 +49,10 @@
 	//   HASHDB_BUCKET    — pre-built bloom filter (hashdb.bin + .sha256 + .json)
 	//                      served under /downloads/* for customers who don't
 	//                      want to run the multi-hour HIBP build themselves.
+	//   MEDIA_BUCKET     — site videos (and caption tracks) served publicly at
+	//                      /media/<name>, e.g. the installation walkthrough on
+	//                      /support/. Add or replace one with
+	//                      `npx wrangler r2 object put adpasssync-media/<name> --file <path> --remote`.
 	"r2_buckets": [
 		{
 			"binding": "RELEASES_BUCKET",
@@ -56,6 +61,10 @@
 		{
 			"binding": "HASHDB_BUCKET",
 			"bucket_name": "adpasssync-hashdb"
+		},
+		{
+			"binding": "MEDIA_BUCKET",
+			"bucket_name": "adpasssync-media"
 		}
 	],
 	// Plain (non-secret) configuration. Secrets are added via

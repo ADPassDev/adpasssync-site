@@ -3,9 +3,10 @@
 // Routing model:
 //   /api/*        -> Hono Worker (this file)
 //   /downloads/*  -> Hono Worker (R2-backed pre-built bloom filter)
+//   /media/*      -> Hono Worker (R2-backed site videos, e.g. on /support/)
 //   anything else -> Cloudflare static assets (public/), configured in
 //                    wrangler.jsonc. Static assets win the race; the Worker
-//                    only sees /api/* and /downloads/* due to
+//                    only sees /api/*, /downloads/* and /media/* due to
 //                    `assets.run_worker_first`.
 
 import { Hono } from 'hono';
@@ -16,6 +17,7 @@ import portalRoutes from './routes/portal';
 import adminRoutes from './routes/admin';
 import billingRoutes from './routes/billing';
 import downloadsRoutes from './routes/downloads';
+import mediaRoutes from './routes/media';
 import paddleRoutes from './routes/paddle';
 import contactRoutes from './routes/contact';
 
@@ -55,6 +57,10 @@ app.route('/api/contact', contactRoutes);
 // fetching it can't authenticate without burning per-install API keys.
 app.route('/downloads', downloadsRoutes);
 
+// Public R2-backed site media (the installation walkthrough video on
+// /support/). No auth: the pages that embed them are public too.
+app.route('/media', mediaRoutes);
+
 // Paddle Billing notifications. No session: they're authenticated by their
 // Paddle-Signature header.
 app.route('/api/paddle', paddleRoutes);
@@ -72,10 +78,11 @@ adminApp.use('*', requireAdmin);
 adminApp.route('/', adminRoutes);
 app.route('/api/admin', adminApp);
 
-// JSON 404 for any unmatched /api or /downloads path. Other paths never reach
-// the Worker (assets handle them), but in case run_worker_first changes:
+// JSON 404 for any unmatched /api, /downloads or /media path. Other paths never
+// reach the Worker (assets handle them), but in case run_worker_first changes:
 app.notFound((c) => {
-  if (c.req.path.startsWith('/api/') || c.req.path.startsWith('/downloads/')) {
+  const p = c.req.path;
+  if (p.startsWith('/api/') || p.startsWith('/downloads/') || p.startsWith('/media/')) {
     return c.json({ error: 'not_found' }, 404);
   }
   // Fall through to assets.

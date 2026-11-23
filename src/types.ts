@@ -4,6 +4,7 @@ export type Env = {
   DB: D1Database;
   RELEASES_BUCKET: R2Bucket;
   HASHDB_BUCKET: R2Bucket;
+  MEDIA_BUCKET: R2Bucket;
   ASSETS: Fetcher;
 
   // Plain config (vars).

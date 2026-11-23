@@ -205,7 +205,7 @@
         '<ul class="policy" id="policy"></ul>' +
         '<p class="ss-note">Breached-password check: <strong>not checked in online version' +
           '</strong> &mdash; <a href="/#contact">download to try</a>. The installed product blocks ' +
-          'passwords found in a 2B+ offline breach corpus, entirely on-premises.</p>' +
+          'passwords on an offline blocklist of 800M+ breached passwords, entirely on-premises.</p>' +
       '</div>' +
       '<div class="ss-field"><label>Confirm new password</label>' +
         '<input class="ss-input" id="pw2" type="password"></div>';

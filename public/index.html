@@ -63,7 +63,7 @@
         .nav-links { display: flex; gap: 2rem; align-items: center; }
         .nav-links a {
             color: var(--text-muted); text-decoration: none; font-size: 0.9rem;
-            font-weight: 500; transition: color 0.2s;
+            font-weight: 500; transition: color 0.2s; white-space: nowrap;
         }
         .nav-links a:hover { color: var(--text); }
         .nav-cta {
@@ -120,6 +120,18 @@
         }
         .hero-trust span { display: inline-flex; align-items: center; gap: 0.4rem; }
         .hero-trust span::before { content: '\2713'; color: var(--green); font-weight: 700; }
+        .hero-watch {
+            display: inline-flex; align-items: center; gap: 0.6rem; margin-top: 1.75rem;
+            color: var(--accent-hover); font-size: 0.95rem; font-weight: 500;
+            text-decoration: none; position: relative;
+        }
+        .hero-watch:hover { color: var(--text); }
+        .hero-watch .play {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 1.9rem; height: 1.9rem; border-radius: 50%; font-size: 0.7rem;
+            background: var(--accent-glow); border: 1px solid rgba(59, 130, 246, 0.4);
+            padding-left: 0.12rem;
+        }
         .btn {
             display: inline-flex; align-items: center; gap: 0.5rem;
             padding: 0.85rem 2rem; border-radius: 10px;
@@ -454,6 +466,16 @@
 
         /* MOBILE NAV */
         .nav-toggle { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; padding: 0.5rem; z-index: 101; -webkit-tap-highlight-color: transparent; }
+        /* The links need about 1,060px on one line at the 2rem gap and 975px at
+           1.25rem; below that they collapse behind the toggle. */
+        @media (max-width: 1100px) {
+            .nav-links { gap: 1.25rem; }
+        }
+        @media (max-width: 1000px) {
+            .nav-links { display: none !important; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: rgba(10, 14, 26, 0.98); border-bottom: 1px solid var(--border); padding: 1rem 2rem; gap: 1rem; z-index: 100; }
+            .nav-links.open { display: flex !important; }
+            .nav-toggle { display: block; }
+        }
         @media (max-width: 880px) {
             .feature-row { grid-template-columns: 1fr; gap: 2rem; }
             .feature-row.reversed .feature-copy { order: 1; }
@@ -461,9 +483,6 @@
             .feature-row + .feature-row { margin-top: 4.5rem; }
         }
         @media (max-width: 768px) {
-            .nav-links { display: none !important; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: rgba(10, 14, 26, 0.98); border-bottom: 1px solid var(--border); padding: 1rem 2rem; gap: 1rem; z-index: 100; }
-            .nav-links.open { display: flex !important; }
-            .nav-toggle { display: block; }
             .hero { padding: 8rem 1.5rem 4rem; }
             .arch-diagram { padding: 1.5rem; }
             .form-row { grid-template-columns: 1fr; }
@@ -487,6 +506,7 @@
             <a href="#security">Security</a>
             <a href="#pricing">Pricing</a>
             <a href="/demo/">Live Demo</a>
+            <a href="/support/">Support</a>
             <a href="/portal/">Sign in</a>
             <a href="/portal/" class="nav-cta">Get Started Free</a>
         </div>
@@ -509,6 +529,7 @@
         <span>No cloud dependency</span>
         <span>Deploys in under an hour</span>
     </div>
+    <a href="/support/#installation" class="hero-watch"><span class="play" aria-hidden="true">&#9654;</span> Watch the 5-minute installation walkthrough</a>
 </section>
 
 <!-- PRODUCT OVERVIEW -->
@@ -517,7 +538,7 @@
         <div class="section-header center">
             <div class="section-label">Overview</div>
             <h2 class="section-title">One platform for the entire password lifecycle</h2>
-            <p class="section-subtitle">ADPassSync intercepts password changes right at the domain controller, enforces your policy, checks for breaches, and gives users a secure self-service reset portal with MFA — without ever sending credentials to the cloud.</p>
+            <p class="section-subtitle">ADPassSync checks password changes right at the domain controller, enforces your policy, blocks breached passwords, and gives users a secure self-service reset portal with MFA — without ever sending credentials to the cloud.</p>
         </div>
         <div class="arch-diagram">
             <div class="arch-flow">
@@ -698,16 +719,16 @@
                         <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
                     </div>
                     <div class="bloom-verdict"><span>&#9888;</span> Match found &mdash; password seen in known breaches. Rejected.</div>
-                    <div class="bloom-stat"><b>2B+</b><small>compromised passwords checked in-memory, in microseconds</small></div>
+                    <div class="bloom-stat"><b>800M+</b><small>compromised passwords checked in-memory, in microseconds</small></div>
                 </div>
             </div>
             <div class="feature-copy">
                 <div class="feature-badge red">&#128680;</div>
                 <div class="eyebrow">Breached Password Detection</div>
                 <h3>Stop compromised passwords at the door</h3>
-                <p>Every new password is checked against a bloom filter of over 2 billion credentials exposed in public breaches — in real time, entirely offline. No password or hash ever leaves your network.</p>
+                <p>New passwords are checked against a blocklist built from over 800 million passwords exposed in public breaches — in real time, entirely offline. The blocklist is a Bloom filter that contains no passwords, and no password or hash ever leaves your network.</p>
                 <ul class="feature-list">
-                    <li><span class="check">&#10003;</span><span><strong>2B+ known-compromised passwords</strong> <span class="txt">— sourced from public breach corpora.</span></span></li>
+                    <li><span class="check">&#10003;</span><span><strong>800M+ known-compromised passwords</strong> <span class="txt">— from the public Have I Been Pwned list.</span></span></li>
                     <li><span class="check">&#10003;</span><span><strong>Real-time blocking</strong> <span class="txt">— rejected before the change reaches AD.</span></span></li>
                     <li><span class="check">&#10003;</span><span><strong>Fully offline</strong> <span class="txt">— in-memory bloom filter, no external API calls.</span></span></li>
                     <li><span class="check">&#10003;</span><span><strong>Regularly refreshed</strong> <span class="txt">— update the dataset as new breaches surface.</span></span></li>
@@ -754,14 +775,14 @@
         <div class="section-header center">
             <div class="section-label">Architecture &amp; Security</div>
             <h2 class="section-title">Security isn't a feature — it's the foundation</h2>
-            <p class="section-subtitle">ADPassSync deploys as a distributed pipeline across your AD infrastructure. Passwords are envelope-encrypted at the domain controller and never appear in plaintext anywhere downstream.</p>
+            <p class="section-subtitle">ADPassSync deploys as a distributed pipeline across your AD infrastructure. Password changes are envelope-encrypted at the domain controller, and only the central service you run can decrypt them.</p>
         </div>
         <div class="arch-diagram">
             <div class="pipeline">
                 <div class="pipe-node">
                     <div class="pi">&#128451;</div>
                     <div class="pl">Password Filter DLL</div>
-                    <div class="pd">lsass.exe on each DC</div>
+                    <div class="pd">Runs on each DC</div>
                 </div>
                 <div class="pipe-link"><span class="a">&#8594;</span><span class="lbl">named pipe</span></div>
                 <div class="pipe-node">
@@ -783,13 +804,13 @@
                 </div>
             </div>
             <div class="arch-note">
-                Passwords are envelope-encrypted on the DC (AES-256-GCM + RSA-OAEP). The relay only ever forwards encrypted blobs — it never holds a key.
+                Password changes are envelope-encrypted on the DC (AES-256-GCM + RSA-OAEP). The relay forwards them still encrypted and holds no key to them.
             </div>
         </div>
         <div id="security" class="security-grid">
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
-                <div><h4>Envelope Encryption</h4><p>AES-256-GCM + RSA-OAEP. Credentials are encrypted on the DC and only decrypted by the central service.</p></div>
+                <div><h4>Envelope Encryption</h4><p>AES-256-GCM + RSA-OAEP. Password changes are encrypted on the DC and only decrypted by the central service.</p></div>
             </div>
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
@@ -797,7 +818,7 @@
             </div>
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
-                <div><h4>Zero Plaintext</h4><p>The relay forwards encrypted blobs. No intermediate component ever sees the password.</p></div>
+                <div><h4>Encrypted in Transit</h4><p>Password changes sent for sync stay sealed until they reach the central service. Portal resets travel over mutual TLS to the relay, which sets the new password in AD over LDAPS.</p></div>
             </div>
             <div class="security-item">
                 <div class="security-check">&#10003;</div>
@@ -913,7 +934,7 @@
         <div class="section-header center">
             <div class="section-label">Pricing</div>
             <h2 class="section-title">Start free. Scale when you're ready.</h2>
-            <p class="section-subtitle">Full functionality for up to 50 Active Directory users. No credit card required.</p>
+            <p class="section-subtitle">Free for up to 50 Active Directory users. No credit card required.</p>
         </div>
         <div class="pricing-grid">
             <div class="pricing-card">
@@ -937,7 +958,6 @@
                 <ul class="pricing-features">
                     <li>Everything in Free</li>
                     <li>Scale beyond 50 AD users</li>
-                    <li>Full breached-password database</li>
                     <li>Priority support</li>
                     <li>License file deployment via AD</li>
                     <li>Custom policy rules</li>
@@ -1028,6 +1048,7 @@
         <div class="footer-links">
             <a href="#features">Features</a>
             <a href="#pricing">Pricing</a>
+            <a href="/support/">Support</a>
             <a href="#contact">Contact</a>
             <a href="/legal/terms.html">Terms of Sale</a>
             <a href="/legal/refund-policy.html">Refund Policy</a>

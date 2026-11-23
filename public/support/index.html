@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Support — ADPassSync</title>
+    <meta name="description" content="Watch a complete ADPassSync installation in about five minutes: the release download, relay and central service setup, domain controller agents, the admin console and licensing.">
+    <link rel="stylesheet" href="/fonts/inter.css">
+    <link rel="stylesheet" href="/support/css/support.css">
+    <!-- Lets search engines list the video. A data block, not a script, so the CSP doesn't apply. -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "VideoObject",
+        "name": "ADPassSync installation walkthrough",
+        "description": "A complete ADPassSync installation: the release download, relay and central service setup, domain controller agents, the admin console and licensing.",
+        "thumbnailUrl": "https://adpasssync.com/support/img/installation-walkthrough.jpg",
+        "contentUrl": "https://adpasssync.com/media/installation-walkthrough.mp4",
+        "uploadDate": "2026-11-22",
+        "duration": "PT5M15S"
+    }
+    </script>
+</head>
+<body>
+
+<nav>
+    <div class="nav-inner">
+        <a href="/" class="nav-logo">
+            <img class="logo-icon" src="/brand/logo.png" alt="">
+            ADPassSync
+        </a>
+        <button class="nav-toggle" aria-label="Toggle navigation" aria-expanded="false">&#9776;</button>
+        <div class="nav-links">
+            <a href="/#features">Features</a>
+            <a href="/#architecture">Architecture</a>
+            <a href="/#pricing">Pricing</a>
+            <a href="/demo/">Live Demo</a>
+            <a href="/support/" aria-current="page">Support</a>
+            <a href="/portal/">Sign in</a>
+            <a href="/portal/" class="nav-cta">Get Started Free</a>
+        </div>
+    </div>
+</nav>
+
+<main class="page">
+    <header class="page-header">
+        <div class="section-label">Support</div>
+        <h1 class="page-title">Installation walkthrough</h1>
+        <p class="page-subtitle">Follow a complete ADPassSync installation, from downloading the release to a running deployment with every domain controller connected. About five minutes.</p>
+    </header>
+
+    <section id="installation" class="watch" aria-label="Installation walkthrough video">
+        <div class="player">
+            <!-- Served from R2 by the Worker (src/routes/media.ts). To add captions, upload a
+                 WebVTT file next to the video and add:
+                 <track kind="captions" src="/media/installation-walkthrough.en.vtt" srclang="en" label="English" default> -->
+            <video id="walkthrough" controls preload="metadata" playsinline
+                   poster="/support/img/installation-walkthrough.jpg" width="1440" height="1080">
+                <source src="/media/installation-walkthrough.mp4" type="video/mp4">
+                <p>Your browser can't play this video. <a href="/media/installation-walkthrough.mp4">Download it</a> (MP4, 21&nbsp;MB).</p>
+            </video>
+            <p class="player-meta">ADPassSync 0.9.6 &middot; 5:15 &middot; <a href="/media/installation-walkthrough.mp4" download>Download MP4 (21&nbsp;MB)</a></p>
+        </div>
+
+        <aside class="chapters" aria-labelledby="chapters-title">
+            <h2 id="chapters-title">In this video</h2>
+            <ol>
+                <li><a href="#t=0" data-t="0"><span class="ts">0:00</span><span class="label">Download the release from the customer portal</span></a></li>
+                <li><a href="#t=20" data-t="20"><span class="ts">0:20</span><span class="label">What&rsquo;s in the release: installers, guides and checksums</span></a></li>
+                <li><a href="#t=44" data-t="44"><span class="ts">0:44</span><span class="label">Quick Start Guide: architecture and checklist</span></a></li>
+                <li><a href="#t=98" data-t="98"><span class="ts">1:38</span><span class="label">Run the installer and choose features</span></a></li>
+                <li><a href="#t=128" data-t="128"><span class="ts">2:08</span><span class="label">Configure the relay and its AD connection</span></a></li>
+                <li><a href="#t=164" data-t="164"><span class="ts">2:44</span><span class="label">Sync options and TLS certificates</span></a></li>
+                <li><a href="#t=209" data-t="209"><span class="ts">3:29</span><span class="label">Deploy the password filter to your domain controllers</span></a></li>
+                <li><a href="#t=244" data-t="244"><span class="ts">4:04</span><span class="label">Sign in to the admin console and check every component</span></a></li>
+                <li><a href="#t=293" data-t="293"><span class="ts">4:53</span><span class="label">Register your installation to license more than 50 users</span></a></li>
+            </ol>
+        </aside>
+    </section>
+
+    <section id="before-you-begin" class="block">
+        <h2>Before you begin</h2>
+        <p>The Quick Start Guide, included in every download, lists the full requirements and the network ports between zones. Its checklist for before you install:</p>
+        <ul class="checklist">
+            <li>Verify the installer&rsquo;s signature: <code>Get-AuthenticodeSignature .\ADPassSync-&lt;version&gt;.msi</code> should show <strong>AD Argus Cybersecurity Corporation</strong> and status <strong>Valid</strong>.</li>
+            <li>Create an AD security group for console administrators. The default name is <code>ADPassSync Admins</code>. Add yourself.</li>
+            <li>Create an AD service account for the relay, for example <code>svc-adpasssync</code>. Grant it read on the domain, create-child and write on the container that will hold the ADPassSync configuration object, and <em>Reset password</em> plus <em>Write lockoutTime</em> on the OUs the portals will serve. Don&rsquo;t make it a Domain Admin.</li>
+            <li>Decide the DNS names users and servers will use, for example <code>relay01.contoso.com</code>, <code>svc01.dmz.contoso.com</code> and <code>reset.contoso.com</code>.</li>
+            <li>Plan a reboot window for each Domain Controller.</li>
+        </ul>
+        <p class="note"><strong>About the certificate warning at 4:11.</strong> The walkthrough uses the development mTLS certificates that setup can generate, so the browser doesn&rsquo;t trust the admin console&rsquo;s certificate. As setup says, those are for development and testing only: in production, issue certificates from your organization&rsquo;s PKI or AD Certificate Services.</p>
+    </section>
+
+    <section id="help" class="block">
+        <h2>More help</h2>
+        <div class="help-grid">
+            <div class="help-card">
+                <h3>Guides</h3>
+                <p>The Quick Start Guide and the Administrator Guide come as PDFs in every download, next to the installers.</p>
+                <a href="/portal/" class="help-link">Sign in to download &rarr;</a>
+            </div>
+            <div class="help-card">
+                <h3>Licensing</h3>
+                <p>Up to 50 Active Directory users are free, with no license file. For more, register your installation in the customer portal, as the last chapter shows.</p>
+                <a href="#t=293" data-t="293" class="help-link">Watch how &rarr;</a>
+            </div>
+            <div class="help-card">
+                <h3>Ask us</h3>
+                <p>Questions about deploying ADPassSync? Send us a message, or email <a href="mailto:sales@adargus.com">sales@adargus.com</a>. Professional customers get priority support.</p>
+                <a href="/#contact" class="help-link">Contact us &rarr;</a>
+            </div>
+        </div>
+    </section>
+</main>
+
+<footer>
+    <div class="footer-inner">
+        <div class="footer-text">&copy; 2026 AD Argus Cybersecurity Corporation. All rights reserved.</div>
+        <div class="footer-links">
+            <a href="/#features">Features</a>
+            <a href="/#pricing">Pricing</a>
+            <a href="/support/">Support</a>
+            <a href="/#contact">Contact</a>
+            <a href="/legal/terms.html">Terms of Sale</a>
+            <a href="/legal/refund-policy.html">Refund Policy</a>
+            <a href="/legal/privacy.html">Privacy</a>
+            <a href="/legal/eula.html">EULA</a>
+        </div>
+    </div>
+</footer>
+
+<script src="/support/js/support.js" defer></script>
+</body>
+</html>
