@@ -230,14 +230,16 @@
             padding: 0.7rem 0.9rem; border-bottom: 1px solid var(--border);
             background: rgba(255,255,255,0.02);
         }
-        .mock-dot { width: 11px; height: 11px; border-radius: 50%; }
+        .mock-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
         .mock-dot.r { background: #ef4444; } .mock-dot.y { background: #f59e0b; } .mock-dot.g { background: #10b981; }
         .mock-url {
-            margin-left: 0.75rem; flex: 1; font-size: 0.72rem; color: var(--text-dim);
+            margin-left: 0.75rem; flex: 1; min-width: 0; font-size: 0.72rem; color: var(--text-dim);
             background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
             padding: 0.25rem 0.7rem; display: flex; align-items: center; gap: 0.4rem;
         }
         .mock-url .lock { color: var(--green); font-size: 0.7rem; }
+        /* a long URL is cut short with an ellipsis rather than widening the mock on narrow screens */
+        .mock-url-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .mock-body { padding: 1.75rem; }
 
         /* generic form field mockup */
@@ -284,7 +286,8 @@
         /* OTP boxes */
         .otp-row { display: flex; gap: 0.5rem; justify-content: center; margin: 1rem 0; }
         .otp-row .box {
-            width: 38px; height: 46px; border-radius: 8px; background: var(--bg);
+            /* height follows width, so boxes keep their shape when the row squeezes them on narrow screens */
+            width: 38px; aspect-ratio: 38 / 46; border-radius: 8px; background: var(--bg);
             border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
             font-size: 1.2rem; font-weight: 700;
         }
@@ -455,7 +458,9 @@
         /* MOBILE NAV */
         .nav-toggle { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; padding: 0.5rem; z-index: 101; -webkit-tap-highlight-color: transparent; }
         @media (max-width: 880px) {
-            .feature-row { grid-template-columns: 1fr; gap: 2rem; }
+            /* minmax(0, 1fr), not 1fr: a 1fr track can't shrink below its widest item's
+               min-content, so one wide mockup would push the whole row past the viewport */
+            .feature-row { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
             .feature-row.reversed .feature-copy { order: 1; }
             .feature-row.reversed .feature-visual { order: 2; }
             .feature-row + .feature-row { margin-top: 4.5rem; }
@@ -469,6 +474,14 @@
             .form-row { grid-template-columns: 1fr; }
             .pricing-grid { grid-template-columns: 1fr; }
             section { padding: 4.5rem 1.5rem; }
+        }
+        @media (max-width: 480px) {
+            /* two target chips side by side need ~340px; stack them on phones */
+            .ldap-targets { grid-template-columns: 1fr; }
+            /* in a tight dashboard row the email truncates so the status pill stays on one line */
+            .dash-tr .who { min-width: 0; }
+            .dash-tr .who small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .dash-tr .pill { white-space: nowrap; }
         }
     </style>
 </head>
@@ -579,7 +592,7 @@
                 <div class="mock mock-glow">
                     <div class="mock-bar">
                         <span class="mock-dot r"></span><span class="mock-dot y"></span><span class="mock-dot g"></span>
-                        <span class="mock-url"><span class="lock">&#128274;</span> reset.acme.local/portal</span>
+                        <span class="mock-url"><span class="lock">&#128274;</span> <span class="mock-url-text">reset.acme.local/portal</span></span>
                     </div>
                     <div class="mock-body">
                         <div class="mf-logo"><span class="lg"></span> ADPassSync</div>
@@ -612,7 +625,7 @@
                 <div class="mock mock-glow">
                     <div class="mock-bar">
                         <span class="mock-dot r"></span><span class="mock-dot y"></span><span class="mock-dot g"></span>
-                        <span class="mock-url"><span class="lock">&#128274;</span> reset.acme.local/enroll</span>
+                        <span class="mock-url"><span class="lock">&#128274;</span> <span class="mock-url-text">reset.acme.local/enroll</span></span>
                     </div>
                     <div class="mock-body" style="text-align:center;">
                         <div class="mf-logo" style="justify-content:center;"><span class="lg"></span> ADPassSync</div>
@@ -671,7 +684,7 @@
                 <div class="mock mock-glow">
                     <div class="mock-bar">
                         <span class="mock-dot r"></span><span class="mock-dot y"></span><span class="mock-dot g"></span>
-                        <span class="mock-url"><span class="lock">&#128274;</span> admin.acme.local/policy</span>
+                        <span class="mock-url"><span class="lock">&#128274;</span> <span class="mock-url-text">admin.acme.local/policy</span></span>
                     </div>
                     <div class="mock-body" style="padding:0.5rem 0.5rem 1rem;">
                         <div style="padding:0.85rem 1rem 0.4rem; font-weight:700; font-size:0.9rem;">Password Policy &mdash; Default</div>
@@ -823,7 +836,7 @@
                 <div class="mock mock-glow">
                     <div class="mock-bar">
                         <span class="mock-dot r"></span><span class="mock-dot y"></span><span class="mock-dot g"></span>
-                        <span class="mock-url"><span class="lock">&#128274;</span> admin.acme.local/dashboard</span>
+                        <span class="mock-url"><span class="lock">&#128274;</span> <span class="mock-url-text">admin.acme.local/dashboard</span></span>
                     </div>
                     <div class="mock-body">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.9rem;">
